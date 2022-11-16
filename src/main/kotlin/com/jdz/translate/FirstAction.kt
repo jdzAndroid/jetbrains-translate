@@ -13,13 +13,13 @@ class FirstAction : AnAction() {
         var jFrame = JFrame("Search Translate")
         jFrame.background = Color.BLACK
         jFrame.isAlwaysOnTop = true
-        jFrame.layout = BorderLayout()
+        jFrame.layout = FlowLayout()
         jFrame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
         val jFrameWidth = screenSize.width / 4
         val jFrameHeight = screenSize.height / 4
         jFrame.setSize(jFrameWidth,jFrameHeight)
         val jPanelInput=JPanel()
-        jPanelInput.layout=MigLayout()
+//        jPanelInput.layout=MigLayout()
         jPanelInput.setSize(jFrameWidth-40,30)
         val jLabel = JLabel("关键字")
         jPanelInput.add(jLabel)
@@ -29,7 +29,7 @@ class FirstAction : AnAction() {
         jPanelInput.setLocation(20,10)
         jFrame.add(jPanelInput)
         val jPanelButton = JPanel()
-        jPanelButton.layout=MigLayout()
+//        jPanelButton.layout=MigLayout()
         val startButton = JButton("开始")
         jPanelButton.add(startButton)
         startButton.addActionListener {
@@ -42,7 +42,7 @@ class FirstAction : AnAction() {
         }
         jPanelButton.add(cancelButton)
         jPanelButton.setSize(jFrameWidth-40,30)
-        jPanelButton.setLocation(20,50)
+        jPanelButton.setLocation(20,80)
         jFrame.add(jPanelButton)
         jFrame.isVisible = true
     }
