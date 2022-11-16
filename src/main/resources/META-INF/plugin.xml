@@ -1,0 +1,23 @@
+<idea-plugin>
+    <id>org.jdz.translate.translate</id>
+    <name>Translate Tool</name>
+    <vendor email="981023025@qq.com" url="https://blog.csdn.net/qq_21763489?type=blog">JDZ</vendor>
+
+    <description><![CDATA[
+    This user app develops an international translation tool. In addition, it provides file conversion between xml, excel, and json formats to quickly search and display the corresponding translation details
+    ]]></description>
+
+    <!-- please see https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html
+         on how to target different products -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Add your extensions here -->
+    </extensions>
+    <actions>
+        <action id="FirstAction" class="com.jdz.translate.FirstAction" text="FirstAction" description="FirstAction">
+            <add-to-group group-id="ToolsMenu" anchor="after" relative-to-action="ToolsBasicGroup"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="alt INSERT"/>
+        </action>
+    </actions>
+</idea-plugin>
