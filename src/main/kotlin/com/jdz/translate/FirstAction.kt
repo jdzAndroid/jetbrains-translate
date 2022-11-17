@@ -2,7 +2,6 @@ package com.jdz.translate
 
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.ui.layout.migLayout.patched.MigLayout
 import org.jetbrains.annotations.NotNull
 import java.awt.*
 import javax.swing.*
