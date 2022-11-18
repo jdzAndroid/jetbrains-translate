@@ -53,7 +53,7 @@ class GenerateDartFromJson : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
         val editor = e.getData(PlatformDataKeys.EDITOR)!!
         val manager = FileDocumentManager.getInstance()
-        var virtualFile = manager.getFile(editor.document)!!
+        val virtualFile = manager.getFile(editor.document)!!
         val currentDirectoryPath = virtualFile.parent.path
         println("开始将json文件转换成dart文件 currentDirectoryPath=$currentDirectoryPath")
         //存储当前目录下面的所有json文件的绝对路径
@@ -69,9 +69,9 @@ class GenerateDartFromJson : AnAction() {
             println("没有查找到任何的JSON文件的健值对信息，或者JSON文件内容为空")
             return
         }
-        val methodInfoList = collectMethodInfo(jsonInfoList.first().valueInfoMap)
+        val methodInfoList = collectMethodInfo(jsonInfoList)
         generateBaseDartClass(currentDirectoryPath, methodInfoList)
-        val dartClassInfoList=generateJsonDartClass(jsonInfoList)
+        val dartClassInfoList = generateJsonDartClass(jsonInfoList,methodInfoList)
         generateTranslateProxyClass(currentDirectoryPath, methodInfoList)
         generateTranslateManagerDartClass(rootPath = currentDirectoryPath, dartClassInfoList = dartClassInfoList)
     }
@@ -79,8 +79,8 @@ class GenerateDartFromJson : AnAction() {
     /**
      *生成Dart Translate Manager类
      */
-    private fun generateTranslateManagerDartClass(rootPath: String,dartClassInfoList:List<DartClassInfo>) {
-        var dartClassFilePath = if (rootPath.endsWith(File.separator)) rootPath.plus(mManagerDartFileName)
+    private fun generateTranslateManagerDartClass(rootPath: String, dartClassInfoList: List<DartClassInfo>) {
+        val dartClassFilePath = if (rootPath.endsWith(File.separator)) rootPath.plus(mManagerDartFileName)
         else rootPath.plus(File.separator).plus(mManagerDartFileName)
         val managerFile = File(dartClassFilePath)
         if (managerFile.exists() && managerFile.isFile) {
@@ -115,10 +115,10 @@ class GenerateDartFromJson : AnAction() {
         bufferedWriter.write("      $mBaseDartClassName localTranslate;")
         bufferedWriter.newLine()
         bufferedWriter.write("    switch (languageCode.toLowerCase()) {")
-        var defaultTranslate=dartClassInfoList.first()
-        for (itemDartClassInfo in dartClassInfoList){
-            if (itemDartClassInfo.local==mDefaultLanguageCode){
-                defaultTranslate=itemDartClassInfo
+        var defaultTranslate = dartClassInfoList.first()
+        for (itemDartClassInfo in dartClassInfoList) {
+            if (itemDartClassInfo.local == mDefaultLanguageCode) {
+                defaultTranslate = itemDartClassInfo
                 continue
             }
             bufferedWriter.newLine()
@@ -154,7 +154,7 @@ class GenerateDartFromJson : AnAction() {
      */
     private fun generateTranslateProxyClass(rootPath: String, methodInfoList: List<MethodInfo>) {
         val baseDartPackageImport = "import '$mBaseDartFileName';"
-        var dartClassFilePath = if (rootPath.endsWith(File.separator)) rootPath.plus(mProxyDartFileName)
+        val dartClassFilePath = if (rootPath.endsWith(File.separator)) rootPath.plus(mProxyDartFileName)
         else rootPath.plus(File.separator).plus(mProxyDartFileName)
         println("dartClassFilePath=$dartClassFilePath")
         val dartClassFile = File(dartClassFilePath)
@@ -263,7 +263,7 @@ class GenerateDartFromJson : AnAction() {
     /**
      *开始生成每个Json文件对应的Dart Class
      */
-    private fun generateJsonDartClass(jsonInfoList: List<JsonInfo>):List<DartClassInfo> {
+    private fun generateJsonDartClass(jsonInfoList: List<JsonInfo>,methodInfoList:List<MethodInfo>): List<DartClassInfo> {
         val classInfoList = mutableListOf<DartClassInfo>()
         for (itemJsonInfo in jsonInfoList) {
             try {
@@ -274,8 +274,8 @@ class GenerateDartFromJson : AnAction() {
                 val local = if (fileName.contains("-")) fileName.substring(fileName.lastIndexOf("-") + 1)
                     .lowercase(Locale.CHINA)
                 else fileName.substring(fileName.lastIndexOf("-") + 1).lowercase(Locale.CHINA)
-                if (local.isNullOrEmpty()) continue
-                classInfoList.add(generateJsonDartClass(itemJsonInfo))
+                if (local.isEmpty()) continue
+                classInfoList.add(generateJsonDartClass(itemJsonInfo,methodInfoList))
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -283,11 +283,11 @@ class GenerateDartFromJson : AnAction() {
         return classInfoList
     }
 
-    private fun generateJsonDartClass(jsonInfo: JsonInfo):DartClassInfo {
+    private fun generateJsonDartClass(jsonInfo: JsonInfo,methodInfoList:List<MethodInfo>): DartClassInfo {
         val jsonFile = File(jsonInfo.filePath)
         val pFilePath = jsonFile.parentFile.absolutePath
         val baseDartPackageImport = "import '$mBaseDartFileName';"
-        var dartClassFilePath = pFilePath.plus(File.separator).plus(
+        val dartClassFilePath = pFilePath.plus(File.separator).plus(
             jsonFile.name.substring(0, jsonFile.name.indexOf(".")).lowercase(
                 Locale.CHINA
             )
@@ -298,9 +298,9 @@ class GenerateDartFromJson : AnAction() {
             dartClassFile.delete()
         }
         dartClassFile.createNewFile()
-        val languageCode=jsonFile.name.substring(jsonFile.name.lastIndexOf("_")+1,jsonFile.name.lastIndexOf("."))
+        val languageCode = jsonFile.name.substring(jsonFile.name.lastIndexOf("_") + 1, jsonFile.name.lastIndexOf("."))
         val dartClassName = getDartClassName(dartClassFile.name)
-        if (languageCode==mDefaultLanguageCode || (mDefaultDartFileName.isEmpty() || mDefaultDartClassName.isEmpty())) {
+        if (languageCode == mDefaultLanguageCode || (mDefaultDartFileName.isEmpty() || mDefaultDartClassName.isEmpty())) {
             mDefaultDartClassName = dartClassName
             mDefaultDartFileName = dartClassFile.name
         }
@@ -309,18 +309,18 @@ class GenerateDartFromJson : AnAction() {
         bufferedWriter.newLine()
         bufferedWriter.newLine()
         bufferedWriter.write("class $dartClassName extends $mBaseDartClassName {")
-        val methodInfoList = jsonInfo.valueInfoMap.values.toList()
-        for (itemMethodInfo in methodInfoList) {
+        for (element in methodInfoList) {
+            val itemMethodInfo= element
             bufferedWriter.newLine()
             bufferedWriter.write("  @override")
             bufferedWriter.newLine()
             if (itemMethodInfo.argList.isEmpty()) {
                 bufferedWriter.write("  String ${itemMethodInfo.key}() {")
                 bufferedWriter.newLine()
-                bufferedWriter.write("    return \"\"\"${itemMethodInfo.value}\"\"\";")
+                bufferedWriter.write("    return \"${jsonInfo.valueInfoMap[itemMethodInfo.key]!!.value.replace("\"","\\\"").replace("\\\\\"","\\\"")}\";")
             } else {
                 val argBuilder = StringBuilder()
-                val returnBuilder = StringBuilder("    return \"\"\"${itemMethodInfo.value}\"\"\"")
+                val returnBuilder = StringBuilder("    return \"${jsonInfo.valueInfoMap[itemMethodInfo.key]!!.value.replace("\"","\\\"").replace("\\\\\"","\\\"")}\"")
                 for (index in itemMethodInfo.argList.indices) {
                     val itemArgName = itemMethodInfo.argList[index]
                     if (index == 0) {
@@ -346,7 +346,12 @@ class GenerateDartFromJson : AnAction() {
         bufferedWriter.newLine()
         bufferedWriter.flush()
         bufferedWriter.close()
-        return DartClassInfo(filePath = dartClassFilePath, local = languageCode, fileName = dartClassFile.name, className = dartClassName)
+        return DartClassInfo(
+            filePath = dartClassFilePath,
+            local = languageCode,
+            fileName = dartClassFile.name,
+            className = dartClassName
+        )
     }
 
     /**
@@ -360,9 +365,9 @@ class GenerateDartFromJson : AnAction() {
             dartClassName = ""
             for (itemName in nameArray) {
                 if (itemName.isEmpty()) continue
-                dartClassName += itemName.substring(0, 1).uppercase(java.util.Locale.CHINA).plus(
+                dartClassName += itemName.substring(0, 1).uppercase(Locale.CHINA).plus(
                     itemName.substring(1).lowercase(
-                        java.util.Locale.CHINA
+                        Locale.CHINA
                     )
                 )
             }
@@ -419,17 +424,26 @@ class GenerateDartFromJson : AnAction() {
     /**
      *搜集方法信息
      */
-    private fun collectMethodInfo(valueMap: Map<String, ValueInfo>): List<MethodInfo> {
+    private fun collectMethodInfo(jsonInfoList: List<JsonInfo>): List<MethodInfo> {
         val methodInfoList = mutableListOf<MethodInfo>()
-        for (keyValueInfo in valueMap.values) {
+        val firstJsonInfo=jsonInfoList.first()
+        for (firstValueInfo in firstJsonInfo.valueInfoMap){
             methodInfoList.add(
                 MethodInfo(
-                    key = keyValueInfo.key,
-                    methodName = keyValueInfo.key,
-                    value = keyValueInfo.value,
-                    argList = keyValueInfo.argList
+                    key = firstValueInfo.key,
+                    methodName = firstValueInfo.key,
+                    value = firstValueInfo.value.value,
+                    argList = firstValueInfo.value.argList
                 )
             )
+        }
+        for (index in 1 until jsonInfoList.size){
+            val itemJsonInfo=jsonInfoList[index]
+            for (itemMethodInfo in methodInfoList) {
+                if (itemMethodInfo.argList.size<itemJsonInfo.valueInfoMap[itemMethodInfo.key]!!.argList.size){
+                    itemMethodInfo.argList=itemJsonInfo.valueInfoMap[itemMethodInfo.key]!!.argList
+                }
+            }
         }
         return methodInfoList
     }
@@ -442,7 +456,8 @@ class GenerateDartFromJson : AnAction() {
         //存储每个json文件中的键值对
         val jsonValueList = mutableListOf<JsonInfo>()
         for (itemJsonFilePath in jsonFilePathList) {
-            val valueInfoMap = getKeyValueInfoFromJson(itemJsonFilePath)
+            val valueInfoMap= mutableMapOf<String,ValueInfo>()
+            getKeyValueInfoFromJson(itemJsonFilePath,valueInfoMap)
             if (valueInfoMap.isNotEmpty()) {
                 jsonValueList.add(JsonInfo(filePath = itemJsonFilePath, valueInfoMap = valueInfoMap))
             }
@@ -453,30 +468,35 @@ class GenerateDartFromJson : AnAction() {
     /**
      *获取单个json文件中的健值对信息
      */
-    private fun getKeyValueInfoFromJson(jsonFilePath: String): MutableMap<String, ValueInfo> {
-        val result = mutableMapOf<String, ValueInfo>()
+    private fun getKeyValueInfoFromJson(jsonFilePath: String,valueInfoMap: MutableMap<String, ValueInfo>){
         try {
             val jsonContent = File(jsonFilePath).readText(Charsets.UTF_8)
             val jsonMap =
                 Gson().fromJson<Map<String, String>>(jsonContent, object : TypeToken<Map<String, String>>() {}.type)
             for (itemMapEntry in jsonMap) {
                 val key = itemMapEntry.key
-                var value = itemMapEntry.value
+                val value = itemMapEntry.value
                 val mathResultList = mRegex.findAll(value.replace("{", " {").replace("}", "} "))
                 if (mathResultList.count() == 0) {
-                    result[key] = ValueInfo(key = key, value = value, argList = mutableListOf())
+                    if (!valueInfoMap.containsKey(key)){
+                        valueInfoMap[key] = ValueInfo(key = key, value = value, argList = mutableListOf())
+                    }
                 } else {
                     val argList = mutableListOf<String>()
                     for (itemMathResult in mathResultList) {
-                        argList.add(itemMathResult.value.replace("{", "").replace("}", ""))
+                        val argValue = itemMathResult.value.replace("{", "").replace("}", "")
+                        if (!argList.contains(argValue)) {
+                            argList.add(argValue)
+                        }
                     }
-                    result[key] = ValueInfo(key = key, value = value.replace("\\\\","\\"), argList = argList)
+                    if (!valueInfoMap.containsKey(key)||valueInfoMap[key]!!.argList.size<argList.size){
+                        valueInfoMap[key] = ValueInfo(key = key, value = value, argList = argList)
+                    }
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        return result
     }
 
     /**
@@ -508,13 +528,13 @@ class GenerateDartFromJson : AnAction() {
 
     data class ValueInfo(val key: String, val value: String, val argList: List<String>)
 
-    data class MethodInfo(val key: String, val methodName: String, val value: String, val argList: List<String>)
+    data class MethodInfo(val key: String, val methodName: String, val value: String, var argList: List<String>)
 
     /**
      *@param filePath Dart文件所在路径
      * @param local 对应的Dart翻译在哪种语种环境下面使用
-     * @param filName 文件名
+     * @param fileName 文件名
      * @param className 类名
      */
-    data class DartClassInfo(val filePath: String, val local: String,val fileName:String,val className:String)
+    data class DartClassInfo(val filePath: String, val local: String, val fileName: String, val className: String)
 }

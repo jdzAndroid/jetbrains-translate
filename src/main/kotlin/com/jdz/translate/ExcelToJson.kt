@@ -127,13 +127,28 @@ class ExcelToJson : AnAction() {
                             .replace("%2\$d", "{params2}").replace("%3\$d", "{params3}")
                             .replace("%4\$d", "{params4}")
                             .replace("\"", "\\\"")
-                            .replace("\\","\\\\")
+                            .replace("\\", "\\\\")
                             .replace("\n", "")
-                            .replace("\\\\\\\\","\\\\")
-                            .replace("\\\\\"","\\\"")
-                            .replace(" "," ")
-                            .replace("\\r\\n","")
-                        val mathResultList = regex.findAll(columnValue.replace("{", " {").replace("}", "} "))
+                            .replace("\\\\\\\\", "\\\\")
+                            .replace("\\\\\"", "\\\"")
+                            .replace(" ", " ")
+                            .replace("\\r\\n", "")
+                            .replace("\\t","")
+                            .replace("\\b","")
+                            .replace("\\r","")
+                            .replace("\\v","")
+                            .replace("\\f","")
+                            .replace("\\e","")
+                        val lineList = columnValue.lines()
+                        if (lineList.isNotEmpty()) {
+                            columnValue = ""
+                            for (itemLine in lineList) {
+                                columnValue = columnValue.plus(itemLine)
+                            }
+                        } else {
+                            columnValue = ""
+                        }
+                        val mathResultList = regex.findAll(columnValue!!.replace("{", " {").replace("}", "} "))
                         if (columnIndex == 0) {
                             paramsCount = mathResultList.count()
                         } else {
