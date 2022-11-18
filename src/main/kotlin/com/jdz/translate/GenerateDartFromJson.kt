@@ -54,8 +54,7 @@ class GenerateDartFromJson : AnAction() {
         val editor = e.getData(PlatformDataKeys.EDITOR)!!
         val manager = FileDocumentManager.getInstance()
         var virtualFile = manager.getFile(editor.document)!!
-        val currentDirectoryPath: String
-        currentDirectoryPath = virtualFile.parent.path
+        val currentDirectoryPath = virtualFile.parent.path
         println("开始将json文件转换成dart文件 currentDirectoryPath=$currentDirectoryPath")
         //存储当前目录下面的所有json文件的绝对路径
         val jsonFilePathList = mutableListOf<String>()
@@ -318,10 +317,10 @@ class GenerateDartFromJson : AnAction() {
             if (itemMethodInfo.argList.isEmpty()) {
                 bufferedWriter.write("  String ${itemMethodInfo.key}() {")
                 bufferedWriter.newLine()
-                bufferedWriter.write("    return \"${itemMethodInfo.value}\";")
+                bufferedWriter.write("    return \"\"\"${itemMethodInfo.value}\"\"\";")
             } else {
                 val argBuilder = StringBuilder()
-                val returnBuilder = StringBuilder("    return \"${itemMethodInfo.value}\"")
+                val returnBuilder = StringBuilder("    return \"\"\"${itemMethodInfo.value}\"\"\"")
                 for (index in itemMethodInfo.argList.indices) {
                     val itemArgName = itemMethodInfo.argList[index]
                     if (index == 0) {
@@ -458,14 +457,12 @@ class GenerateDartFromJson : AnAction() {
         val result = mutableMapOf<String, ValueInfo>()
         try {
             val jsonContent = File(jsonFilePath).readText(Charsets.UTF_8)
-            println("jsonContent=$jsonContent")
             val jsonMap =
                 Gson().fromJson<Map<String, String>>(jsonContent, object : TypeToken<Map<String, String>>() {}.type)
             for (itemMapEntry in jsonMap) {
                 val key = itemMapEntry.key
                 var value = itemMapEntry.value
                 val mathResultList = mRegex.findAll(value.replace("{", " {").replace("}", "} "))
-                println("mathResultList=${mathResultList.count()}")
                 if (mathResultList.count() == 0) {
                     result[key] = ValueInfo(key = key, value = value, argList = mutableListOf())
                 } else {
@@ -473,7 +470,7 @@ class GenerateDartFromJson : AnAction() {
                     for (itemMathResult in mathResultList) {
                         argList.add(itemMathResult.value.replace("{", "").replace("}", ""))
                     }
-                    result[key] = ValueInfo(key = key, value = value, argList = argList)
+                    result[key] = ValueInfo(key = key, value = value.replace("\\\\","\\"), argList = argList)
                 }
             }
         } catch (e: Exception) {

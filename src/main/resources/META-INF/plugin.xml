@@ -24,5 +24,9 @@
             <add-to-group group-id="GenerateGroup" anchor="first"/>
             <keyboard-shortcut keymap="$default" first-keystroke="shift C"/>
         </action>
+        <action id="ExcelToJson" class="com.jdz.translate.ExcelToJson" text="ExcelToJson" description="ExcelToJson">
+            <add-to-group group-id="GenerateGroup" anchor="first"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="shift J"/>
+        </action>
     </actions>
 </idea-plugin>
