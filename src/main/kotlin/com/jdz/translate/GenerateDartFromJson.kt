@@ -55,25 +55,27 @@ class GenerateDartFromJson : AnAction() {
         val manager = FileDocumentManager.getInstance()
         val virtualFile = manager.getFile(editor.document)!!
         val currentDirectoryPath = virtualFile.parent.path
-        println("开始将json文件转换成dart文件 currentDirectoryPath=$currentDirectoryPath")
+        logD("开始将json文件转换成dart文件 currentDirectoryPath=$currentDirectoryPath")
         //存储当前目录下面的所有json文件的绝对路径
         val jsonFilePathList = mutableListOf<String>()
-        println("开始查找当前目录下面的所有JSON格式的文件")
+        logD("开始查找当前目录下面的所有JSON格式的文件")
         collectAllJsonFile(directoryPath = currentDirectoryPath, jsonFilePathList = jsonFilePathList)
         if (jsonFilePathList.isEmpty()) {
-            println("在该目录下面没有找到任何JSON文件")
+            logE("在该目录下面没有找到任何JSON文件")
             return
         }
         val jsonInfoList = collectAllKeyValueInfo(jsonFilePathList)
         if (jsonInfoList.isEmpty()) {
-            println("没有查找到任何的JSON文件的健值对信息，或者JSON文件内容为空")
+            logE("没有查找到任何的JSON文件的健值对信息，或者JSON文件内容为空")
             return
         }
         val methodInfoList = collectMethodInfo(jsonInfoList)
-        generateBaseDartClass(currentDirectoryPath, methodInfoList)
-        val dartClassInfoList = generateJsonDartClass(jsonInfoList,methodInfoList)
-        generateTranslateProxyClass(currentDirectoryPath, methodInfoList)
-        generateTranslateManagerDartClass(rootPath = currentDirectoryPath, dartClassInfoList = dartClassInfoList)
+        if (methodInfoList.isNotEmpty()) {
+            generateBaseDartClass(currentDirectoryPath, methodInfoList)
+            val dartClassInfoList = generateJsonDartClass(jsonInfoList, methodInfoList)
+            generateTranslateProxyClass(currentDirectoryPath, methodInfoList)
+            generateTranslateManagerDartClass(rootPath = currentDirectoryPath, dartClassInfoList = dartClassInfoList)
+        }
     }
 
     /**
@@ -156,7 +158,7 @@ class GenerateDartFromJson : AnAction() {
         val baseDartPackageImport = "import '$mBaseDartFileName';"
         val dartClassFilePath = if (rootPath.endsWith(File.separator)) rootPath.plus(mProxyDartFileName)
         else rootPath.plus(File.separator).plus(mProxyDartFileName)
-        println("dartClassFilePath=$dartClassFilePath")
+        logD("dartClassFilePath=$dartClassFilePath")
         val dartClassFile = File(dartClassFilePath)
         if (dartClassFile.exists() && dartClassFile.isFile) {
             dartClassFile.delete()
@@ -263,7 +265,10 @@ class GenerateDartFromJson : AnAction() {
     /**
      *开始生成每个Json文件对应的Dart Class
      */
-    private fun generateJsonDartClass(jsonInfoList: List<JsonInfo>,methodInfoList:List<MethodInfo>): List<DartClassInfo> {
+    private fun generateJsonDartClass(
+        jsonInfoList: List<JsonInfo>,
+        methodInfoList: List<MethodInfo>
+    ): List<DartClassInfo> {
         val classInfoList = mutableListOf<DartClassInfo>()
         for (itemJsonInfo in jsonInfoList) {
             try {
@@ -275,7 +280,7 @@ class GenerateDartFromJson : AnAction() {
                     .lowercase(Locale.CHINA)
                 else fileName.substring(fileName.lastIndexOf("-") + 1).lowercase(Locale.CHINA)
                 if (local.isEmpty()) continue
-                classInfoList.add(generateJsonDartClass(itemJsonInfo,methodInfoList))
+                classInfoList.add(generateJsonDartClass(itemJsonInfo, methodInfoList))
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -283,7 +288,7 @@ class GenerateDartFromJson : AnAction() {
         return classInfoList
     }
 
-    private fun generateJsonDartClass(jsonInfo: JsonInfo,methodInfoList:List<MethodInfo>): DartClassInfo {
+    private fun generateJsonDartClass(jsonInfo: JsonInfo, methodInfoList: List<MethodInfo>): DartClassInfo {
         val jsonFile = File(jsonInfo.filePath)
         val pFilePath = jsonFile.parentFile.absolutePath
         val baseDartPackageImport = "import '$mBaseDartFileName';"
@@ -292,7 +297,7 @@ class GenerateDartFromJson : AnAction() {
                 Locale.CHINA
             )
         ).plus(".dart")
-        println("dartClassFilePath=$dartClassFilePath")
+        logD("dartClassFilePath=$dartClassFilePath")
         val dartClassFile = File(dartClassFilePath)
         if (dartClassFile.exists() && dartClassFile.isFile) {
             dartClassFile.delete()
@@ -310,17 +315,31 @@ class GenerateDartFromJson : AnAction() {
         bufferedWriter.newLine()
         bufferedWriter.write("class $dartClassName extends $mBaseDartClassName {")
         for (element in methodInfoList) {
-            val itemMethodInfo= element
+            val itemMethodInfo = element
             bufferedWriter.newLine()
             bufferedWriter.write("  @override")
             bufferedWriter.newLine()
             if (itemMethodInfo.argList.isEmpty()) {
                 bufferedWriter.write("  String ${itemMethodInfo.key}() {")
                 bufferedWriter.newLine()
-                bufferedWriter.write("    return \"${jsonInfo.valueInfoMap[itemMethodInfo.key]!!.value.replace("\"","\\\"").replace("\\\\\"","\\\"")}\";")
+                bufferedWriter.write(
+                    "    return \"${
+                        jsonInfo.valueInfoMap[itemMethodInfo.key]!!.value.replace(
+                            "\"",
+                            "\\\""
+                        ).replace("\\\\\"", "\\\"")
+                    }\";"
+                )
             } else {
                 val argBuilder = StringBuilder()
-                val returnBuilder = StringBuilder("    return \"${jsonInfo.valueInfoMap[itemMethodInfo.key]!!.value.replace("\"","\\\"").replace("\\\\\"","\\\"")}\"")
+                val returnBuilder = StringBuilder(
+                    "    return \"${
+                        jsonInfo.valueInfoMap[itemMethodInfo.key]!!.value.replace(
+                            "\"",
+                            "\\\""
+                        ).replace("\\\\\"", "\\\"")
+                    }\""
+                )
                 for (index in itemMethodInfo.argList.indices) {
                     val itemArgName = itemMethodInfo.argList[index]
                     if (index == 0) {
@@ -426,8 +445,8 @@ class GenerateDartFromJson : AnAction() {
      */
     private fun collectMethodInfo(jsonInfoList: List<JsonInfo>): List<MethodInfo> {
         val methodInfoList = mutableListOf<MethodInfo>()
-        val firstJsonInfo=jsonInfoList.first()
-        for (firstValueInfo in firstJsonInfo.valueInfoMap){
+        val firstJsonInfo = jsonInfoList.first()
+        for (firstValueInfo in firstJsonInfo.valueInfoMap) {
             methodInfoList.add(
                 MethodInfo(
                     key = firstValueInfo.key,
@@ -437,11 +456,11 @@ class GenerateDartFromJson : AnAction() {
                 )
             )
         }
-        for (index in 1 until jsonInfoList.size){
-            val itemJsonInfo=jsonInfoList[index]
+        for (index in 1 until jsonInfoList.size) {
+            val itemJsonInfo = jsonInfoList[index]
             for (itemMethodInfo in methodInfoList) {
-                if (itemMethodInfo.argList.size<itemJsonInfo.valueInfoMap[itemMethodInfo.key]!!.argList.size){
-                    itemMethodInfo.argList=itemJsonInfo.valueInfoMap[itemMethodInfo.key]!!.argList
+                if (itemMethodInfo.argList.size < itemJsonInfo.valueInfoMap[itemMethodInfo.key]!!.argList.size) {
+                    itemMethodInfo.argList = itemJsonInfo.valueInfoMap[itemMethodInfo.key]!!.argList
                 }
             }
         }
@@ -452,12 +471,12 @@ class GenerateDartFromJson : AnAction() {
      *统计所有JSON文件的健值对信息
      */
     private fun collectAllKeyValueInfo(jsonFilePathList: List<String>): List<JsonInfo> {
-        println("开始搜索JSON文件的健值对信息以及参数列表")
+        logD("开始搜索JSON文件的健值对信息以及参数列表")
         //存储每个json文件中的键值对
         val jsonValueList = mutableListOf<JsonInfo>()
         for (itemJsonFilePath in jsonFilePathList) {
-            val valueInfoMap= mutableMapOf<String,ValueInfo>()
-            getKeyValueInfoFromJson(itemJsonFilePath,valueInfoMap)
+            val valueInfoMap = mutableMapOf<String, ValueInfo>()
+            getKeyValueInfoFromJson(itemJsonFilePath, valueInfoMap)
             if (valueInfoMap.isNotEmpty()) {
                 jsonValueList.add(JsonInfo(filePath = itemJsonFilePath, valueInfoMap = valueInfoMap))
             }
@@ -468,7 +487,7 @@ class GenerateDartFromJson : AnAction() {
     /**
      *获取单个json文件中的健值对信息
      */
-    private fun getKeyValueInfoFromJson(jsonFilePath: String,valueInfoMap: MutableMap<String, ValueInfo>){
+    private fun getKeyValueInfoFromJson(jsonFilePath: String, valueInfoMap: MutableMap<String, ValueInfo>) {
         try {
             val jsonContent = File(jsonFilePath).readText(Charsets.UTF_8)
             val jsonMap =
@@ -478,7 +497,7 @@ class GenerateDartFromJson : AnAction() {
                 val value = itemMapEntry.value
                 val mathResultList = mRegex.findAll(value.replace("{", " {").replace("}", "} "))
                 if (mathResultList.count() == 0) {
-                    if (!valueInfoMap.containsKey(key)){
+                    if (!valueInfoMap.containsKey(key)) {
                         valueInfoMap[key] = ValueInfo(key = key, value = value, argList = mutableListOf())
                     }
                 } else {
@@ -489,7 +508,7 @@ class GenerateDartFromJson : AnAction() {
                             argList.add(argValue)
                         }
                     }
-                    if (!valueInfoMap.containsKey(key)||valueInfoMap[key]!!.argList.size<argList.size){
+                    if (!valueInfoMap.containsKey(key) || valueInfoMap[key]!!.argList.size < argList.size) {
                         valueInfoMap[key] = ValueInfo(key = key, value = value, argList = argList)
                     }
                 }
@@ -511,7 +530,7 @@ class GenerateDartFromJson : AnAction() {
 //                    collectAllJsonFile(itemFile.absolutePath, jsonFilePathList)
                 } else {
                     if (isJsonFile(itemFile)) {
-                        println("发现了一个JSON文件 path=${itemFile}")
+                        logD("发现了一个JSON文件 path=${itemFile}")
                         jsonFilePathList.add(itemFile.absolutePath)
                     }
                 }
