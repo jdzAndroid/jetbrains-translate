@@ -21,12 +21,17 @@
         </action>
         <action id="GenerateDartFromJson" class="com.jdz.translate.GenerateDartFromJson" text="GenerateDartFromJson"
                 description="GenerateDartFromJson">
-            <add-to-group group-id="GenerateGroup" anchor="first"/>
+            <add-to-group group-id="GenerateGroup" anchor="after"/>
             <keyboard-shortcut keymap="$default" first-keystroke="shift C"/>
         </action>
         <action id="ExcelToJson" class="com.jdz.translate.ExcelToJson" text="ExcelToJson" description="ExcelToJson">
-            <add-to-group group-id="GenerateGroup" anchor="first"/>
+            <add-to-group group-id="GenerateGroup" anchor="after"/>
             <keyboard-shortcut keymap="$default" first-keystroke="shift J"/>
+        </action>
+        <action id="QuickTipAction" class="com.jdz.translate.QuickTipAction" text="QuickTipAction"
+                description="QuickTipAction">
+            <add-to-group group-id="GenerateGroup" anchor="after"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="shift A"/>
         </action>
     </actions>
 </idea-plugin>

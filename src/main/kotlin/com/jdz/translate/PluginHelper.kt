@@ -17,3 +17,10 @@ fun getBackJsonFileDir(project: Project, virtualFile: VirtualFile): String {
     val rootFile = ProjectRootManager.getInstance(project).fileIndex.getContentRootForFile(virtualFile)!!
     return pluginInstallPath.plus(File.separatorChar).plus(rootFile.name)
 }
+
+/**
+ *翻译可以默认前缀
+ */
+fun getTranslateKeyPrefix(): String {
+    return "ido_key_"
+}

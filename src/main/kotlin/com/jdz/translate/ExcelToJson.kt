@@ -27,6 +27,17 @@ class ExcelToJson : AnAction() {
         if (!backupJsonFile.exists() || !backupJsonFile.isDirectory) {
             backupJsonFile.mkdirs()
         }
+        else{
+            logD("开始删除JSON备份目录下面的所有JSON子文件")
+            val childFileList=backupJsonFile.listFiles()
+            if (!childFileList.isNullOrEmpty()){
+                for (itemChildFile in childFileList) {
+                    if (itemChildFile.name.trim().lowercase(Locale.CHINA).endsWith(".json")){
+                        itemChildFile.delete()
+                    }
+                }
+            }
+        }
 
         var excelFilePath = ""
         val childFile = virtualFile.parent.children
@@ -112,7 +123,7 @@ class ExcelToJson : AnAction() {
 
                     var key = row?.getCell(0)?.toString()
                     if (key.isNullOrEmpty()) {
-                        logE("error key ${row.getCell(0)}")
+                        logE("error key $key")
                         if (writeContentList.size == fileMap.size) {
                             for (contentIndex in writeContentList.indices) {
                                 val itemContent = writeContentList[contentIndex]
@@ -129,9 +140,9 @@ class ExcelToJson : AnAction() {
                         break
                     }
                     try {
-                        key = "ido_key_${key.toFloat().toInt()}"
+                        key = "${getTranslateKeyPrefix()}${key.toFloat().toInt()}"
                     } catch (e: Exception) {
-                        key = "ido_key_$key"
+                        key = "${getTranslateKeyPrefix()}$key"
                     }
                     if (writeContentList.isNotEmpty() && writeContentList.size == fileMap.size) {
                         for (index in writeContentList.indices) {
@@ -161,19 +172,16 @@ class ExcelToJson : AnAction() {
                             .replace("%4\$s", "{params4}").replace("%1\$d", "{params1}")
                             .replace("%2\$d", "{params2}").replace("%3\$d", "{params3}")
                             .replace("%4\$d", "{params4}")
-                            .replace("\"", "\\\"")
-                            .replace("\\", "\\\\")
-                            .replace("\n", "")
-                            .replace("\\\\\\\\", "\\\\")
-                            .replace("\\\\\"", "\\\"")
-                            .replace(" ", " ")
-                            .replace("\\r\\n", "")
                             .replace("\\t", "")
                             .replace("\\b", "")
                             .replace("\\r", "")
                             .replace("\\v", "")
                             .replace("\\f", "")
                             .replace("\\e", "")
+                            .replace("\n", "")
+                            .replace("\\r\\n", "")
+                            .replace("\\\"", "\"")
+                            .replace("\"", "\\\"")
                         val lineList = columnValue.lines()
                         if (lineList.isNotEmpty()) {
                             columnValue = ""
