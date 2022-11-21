@@ -15,19 +15,24 @@
         <!-- Add your extensions here -->
     </extensions>
     <actions>
+        <action id="ExcelToJson" class="com.jdz.translate.ExcelToJson" text="ExcelToJson" description="ExcelToJson">
+            <add-to-group group-id="GenerateGroup" anchor="first"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="shift C"/>
+        </action>
         <action id="GenerateDartFromJson" class="com.jdz.translate.GenerateDartFromJson" text="GenerateDartFromJson"
                 description="GenerateDartFromJson">
-            <add-to-group group-id="GenerateGroup" anchor="after"/>
+            <add-to-group group-id="GenerateGroup" anchor="after" relative-to-action="ExcelToJson"/>
             <keyboard-shortcut keymap="$default" first-keystroke="shift G"/>
-        </action>
-        <action id="ExcelToJson" class="com.jdz.translate.ExcelToJson" text="ExcelToJson" description="ExcelToJson">
-            <add-to-group group-id="GenerateGroup" anchor="after"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="shift C"/>
         </action>
         <action id="QuickTipAction" class="com.jdz.translate.QuickTipAction" text="QuickTipAction"
                 description="QuickTipAction">
-            <add-to-group group-id="GenerateGroup" anchor="after"/>
+            <add-to-group group-id="GenerateGroup" anchor="after" relative-to-action="GenerateDartFromJson"/>
             <keyboard-shortcut keymap="$default" first-keystroke="shift S"/>
+        </action>
+        <action id="SearchAndReplace" class="com.jdz.translate.SearchAndReplace" text="SearchAndReplace"
+                description="SearchAndReplace">
+            <add-to-group group-id="GenerateGroup" anchor="after" relative-to-action="QuickTipAction"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="shift R"/>
         </action>
     </actions>
 </idea-plugin>

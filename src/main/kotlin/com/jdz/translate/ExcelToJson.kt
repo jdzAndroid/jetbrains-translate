@@ -26,13 +26,12 @@ class ExcelToJson : AnAction() {
         val backupJsonFile = File(backupJsonFilePath)
         if (!backupJsonFile.exists() || !backupJsonFile.isDirectory) {
             backupJsonFile.mkdirs()
-        }
-        else{
+        } else {
             logD("开始删除JSON备份目录下面的所有JSON子文件")
-            val childFileList=backupJsonFile.listFiles()
-            if (!childFileList.isNullOrEmpty()){
+            val childFileList = backupJsonFile.listFiles()
+            if (!childFileList.isNullOrEmpty()) {
                 for (itemChildFile in childFileList) {
-                    if (itemChildFile.name.trim().lowercase(Locale.CHINA).endsWith(".json")){
+                    if (itemChildFile.name.trim().lowercase(Locale.CHINA).endsWith(".json")) {
                         itemChildFile.delete()
                     }
                 }
@@ -161,26 +160,21 @@ class ExcelToJson : AnAction() {
                         if (columnValue.isNullOrEmpty()) {
                             columnValue = ""
                         }
-                        columnValue = columnValue.replace("%s", "{params}")
-                            .replace("%d", "{params}").replace("%1d", "{params1}")
-                            .replace("%2d", "{params2}").replace("%3d", "{params3}")
-                            .replace("%4d", "{params4}").replace("%1s", "{params1}")
-                            .replace("%2s", "{params2}").replace("%3s", "{params3}")
-                            .replace("%4s", "{params4}").replace("%1\$s", "{params1}")
-                            .replace("%2\$s", "{params2}").replace("%3\$s", "{params3}")
-                            .replace("%4\$s", "{params4}").replace("%1\$d", "{params1}")
-                            .replace("%2\$d", "{params2}").replace("%3\$d", "{params3}")
-                            .replace("%4\$d", "{params4}")
-                            .replace("\\t", "")
-                            .replace("\\b", "")
-                            .replace("\\r", "")
-                            .replace("\\v", "")
-                            .replace("\\f", "")
-                            .replace("\\e", "")
-                            .replace("\n", "")
-                            .replace("\\r\\n", "")
-                            .replace("\\\"", "\"")
-                            .replace("\"", "\\\"")
+                        columnValue = columnValue
+                            .replace("%d", "{params}").replace("%s", "{params}")
+                            .replace("%1d", "{params1}").replace("%2d", "{params2}")
+                            .replace("%3d", "{params3}").replace("%4d", "{params4}")
+                            .replace("%1s", "{params1}").replace("%2s", "{params2}")
+                            .replace("%3s", "{params3}").replace("%4s", "{params4}")
+                            .replace("%1\$s", "{params1}").replace("%2\$s", "{params2}")
+                            .replace("%3\$s", "{params3}").replace("%4\$s", "{params4}")
+                            .replace("%1\$d", "{params1}").replace("%2\$d", "{params2}")
+                            .replace("%3\$d", "{params3}").replace("%4\$d", "{params4}")
+                            .replace("\\t", "").replace("\\b", "")
+                            .replace("\\r", "").replace("\\v", "")
+                            .replace("\\f", "").replace("\\e", "")
+                            .replace("\\n", "").replace("\\r\\n", "")
+                            .replace("\\\"", "\"").replace("\"", "\\\"")
                         val lineList = columnValue.lines()
                         if (lineList.isNotEmpty()) {
                             columnValue = ""
