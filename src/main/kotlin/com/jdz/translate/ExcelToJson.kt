@@ -123,7 +123,6 @@ class ExcelToJson : AnAction() {
 
                     var key = row?.getCell(0)?.toString()
                     if (key.isNullOrEmpty()) {
-                        logE("error key $key")
                         if (writeContentList.size == fileMap.size) {
                             for (contentIndex in writeContentList.indices) {
                                 val itemContent = writeContentList[contentIndex]

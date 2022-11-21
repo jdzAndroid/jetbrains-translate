@@ -15,23 +15,19 @@
         <!-- Add your extensions here -->
     </extensions>
     <actions>
-        <action id="FirstAction" class="com.jdz.translate.FirstAction" text="FirstAction" description="FirstAction">
-            <add-to-group group-id="ToolsMenu" anchor="after" relative-to-action="ToolsBasicGroup"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="alt INSERT"/>
-        </action>
         <action id="GenerateDartFromJson" class="com.jdz.translate.GenerateDartFromJson" text="GenerateDartFromJson"
                 description="GenerateDartFromJson">
             <add-to-group group-id="GenerateGroup" anchor="after"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="shift C"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="shift G"/>
         </action>
         <action id="ExcelToJson" class="com.jdz.translate.ExcelToJson" text="ExcelToJson" description="ExcelToJson">
             <add-to-group group-id="GenerateGroup" anchor="after"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="shift J"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="shift C"/>
         </action>
         <action id="QuickTipAction" class="com.jdz.translate.QuickTipAction" text="QuickTipAction"
                 description="QuickTipAction">
             <add-to-group group-id="GenerateGroup" anchor="after"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="shift A"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="shift S"/>
         </action>
     </actions>
 </idea-plugin>

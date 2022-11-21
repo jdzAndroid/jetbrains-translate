@@ -89,6 +89,7 @@ class GenerateDartFromJson : AnAction() {
             managerFile.delete()
         }
         managerFile.createNewFile()
+        logD("translateManagerFilePath=$dartClassFilePath")
         val bufferedWriter = BufferedWriter(FileWriter(managerFile))
         bufferedWriter.write("import '$mBaseDartFileName';")
         bufferedWriter.newLine()
