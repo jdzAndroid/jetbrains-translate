@@ -1,5 +1,6 @@
 package com.jdz.translate
 
+import com.google.gson.Gson
 import com.intellij.ide.plugins.PluginManager
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
@@ -17,7 +18,7 @@ import java.util.*
  *获取存储备份的JSON文件路径
  */
 fun getBackJsonFileDir(project: Project, virtualFile: VirtualFile): String {
-    val pluginId = PluginId.getId("org.jdz.translate.translate");
+    val pluginId = PluginId.getId("org.jdz.translate.translate")
     val plugin = PluginManager.getPlugin(pluginId)!!
     val pluginInstallPath = plugin.path.absolutePath
     val rootFile = ProjectRootManager.getInstance(project).fileIndex.getContentRootForFile(virtualFile)!!
@@ -53,7 +54,7 @@ fun findTranslateByKey(keyValue: String, event: AnActionEvent, exactSearch: Bool
     logD("开始通过key查找翻译信息")
     val editor = event.getData(PlatformDataKeys.EDITOR)!!
     val manager = FileDocumentManager.getInstance()
-    var virtualFile = manager.getFile(editor.document)!!
+    val virtualFile = manager.getFile(editor.document)!!
     val backupJsonDirPath = getBackJsonFileDir(project = event.project!!, virtualFile = virtualFile)
     val backupJsonFile = File(backupJsonDirPath)
     val childFileList = backupJsonFile.listFiles()
@@ -77,7 +78,7 @@ fun findTranslateByKey(keyValue: String, event: AnActionEvent, exactSearch: Bool
     }
     val bufferedReader = BufferedReader(FileReader(zhFile))
     var zhTranslateInfo: TranslateInfo? = null
-    var line: String? = null
+    var line: String?
     var lineNumber = 0
     while (true) {
         line = bufferedReader.readLine()
@@ -229,7 +230,7 @@ fun findTranslateByKey(keyValue: String, event: AnActionEvent, exactSearch: Bool
 
 /**
  *通过中文查找翻译
- * @param keyValue 搜索的关键字
+ * @param zhValue 搜索的关键字
  * @param event 触发事件信息
  * @param exactSearch 是否精确查找
  */
@@ -237,7 +238,7 @@ fun findTranslateByZh(zhValue: String, event: AnActionEvent, exactSearch: Boolea
     logD("开始通过中文查找翻译信息")
     val editor = event.getData(PlatformDataKeys.EDITOR)!!
     val manager = FileDocumentManager.getInstance()
-    var virtualFile = manager.getFile(editor.document)!!
+    val virtualFile = manager.getFile(editor.document)!!
     val backupJsonDirPath = getBackJsonFileDir(project = event.project!!, virtualFile = virtualFile)
     val backupJsonFile = File(backupJsonDirPath)
     val childFileList = backupJsonFile.listFiles()
@@ -261,7 +262,7 @@ fun findTranslateByZh(zhValue: String, event: AnActionEvent, exactSearch: Boolea
     }
     val bufferedReader = BufferedReader(FileReader(zhFile))
     val zhTranslateInfoList = mutableListOf<TranslateInfo>()
-    var line: String? = null
+    var line: String?
     var lineNumber = 0
     var searchText = zhValue.trim()
     val specialSymbolsList = getSearchSpecialSymbolsList()
@@ -283,7 +284,7 @@ fun findTranslateByZh(zhValue: String, event: AnActionEvent, exactSearch: Boolea
             var value = splitValue[1].trim()
             key = key.substring(1, key.length)
             value = value.substring(0, value.length - 1)
-            var originalValue = value
+            val originalValue = value
             for (specialSymbols in specialSymbolsList) {
                 value = value.replace(specialSymbols, "")
             }
@@ -324,6 +325,7 @@ fun findTranslateByZh(zhValue: String, event: AnActionEvent, exactSearch: Boolea
         return mutableListOf(zhTranslateInfoList)
     }
     zhTranslateInfoList.sortBy { it.value.length }
+    logD("zhTranslateInfoList=${Gson().toJson(zhTranslateInfoList)}")
     val lineNumberList = mutableListOf<Int>()
     for (itemTranslateInfo in zhTranslateInfoList) {
         lineNumberList.add(itemTranslateInfo.lineNumber)
@@ -334,7 +336,7 @@ fun findTranslateByZh(zhValue: String, event: AnActionEvent, exactSearch: Boolea
     var hasFinedLineNumberIndex = 0
     val notFoundDefaultValue = "没有找到翻译"
     if (enFile != null && !exactSearch) {
-        val enTranslateInfo = mutableListOf<TranslateInfo>()
+        val enTranslateInfoMap = mutableMapOf<String, TranslateInfo>()
         lineNumber = 0
         val enBufferReader = BufferedReader(FileReader(enFile))
         while (true) {
@@ -355,20 +357,16 @@ fun findTranslateByZh(zhValue: String, event: AnActionEvent, exactSearch: Boolea
                     key = key.substring(1, key.length)
                     value = value.substring(0, value.length - 1)
                     logD("英文----->找到的键值对信息 key=$key,value=$value")
-                    enTranslateInfo.add(
-                        TranslateInfo(
-                            key = key,
-                            languageCode = "en",
-                            value = value,
-                            lineNumber = lineNumber
-                        )
+                    enTranslateInfoMap[key] = TranslateInfo(
+                        key = key,
+                        languageCode = "en",
+                        value = value,
+                        lineNumber = lineNumber
                     )
                 } else {
-                    enTranslateInfo.add(
-                        TranslateInfo(
-                            key = zhTranslateInfoList[hasFinedLineNumberIndex].key,
-                            languageCode = "en", value = notFoundDefaultValue, lineNumber = lineNumber
-                        )
+                    enTranslateInfoMap[zhTranslateInfoList[hasFinedLineNumberIndex].key] = TranslateInfo(
+                        key = zhTranslateInfoList[hasFinedLineNumberIndex].key,
+                        languageCode = "en", value = notFoundDefaultValue, lineNumber = lineNumber
                     )
                 }
                 hasFinedLineNumberIndex++
@@ -376,17 +374,20 @@ fun findTranslateByZh(zhValue: String, event: AnActionEvent, exactSearch: Boolea
             lineNumber++
         }
         while (hasFinedLineNumberIndex < lineNumberList.size) {
-            enTranslateInfo.add(
-                TranslateInfo(
-                    key = zhTranslateInfoList[hasFinedLineNumberIndex].key,
-                    languageCode = "en",
-                    value = notFoundDefaultValue,
-                    lineNumber = lineNumberList[hasFinedLineNumberIndex]
-                )
+            enTranslateInfoMap[zhTranslateInfoList[hasFinedLineNumberIndex].key] = TranslateInfo(
+                key = zhTranslateInfoList[hasFinedLineNumberIndex].key,
+                languageCode = "en",
+                value = notFoundDefaultValue,
+                lineNumber = lineNumberList[hasFinedLineNumberIndex]
             )
             hasFinedLineNumberIndex++
         }
-        result.add(enTranslateInfo)
+        val enTranslateInfoList= mutableListOf<TranslateInfo>()
+        for (itemTranslateInfo in zhTranslateInfoList) {
+            enTranslateInfoList.add(enTranslateInfoMap[itemTranslateInfo.key]!!)
+        }
+        logD("enTranslateInfo=${Gson().toJson(enTranslateInfoList)}")
+        result.add(enTranslateInfoList)
     }
 
 
