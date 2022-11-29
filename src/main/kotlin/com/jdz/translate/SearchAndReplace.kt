@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.util.TextRange
 import com.intellij.ui.components.panels.VerticalLayout
 import java.awt.Font
@@ -30,6 +31,11 @@ class SearchAndReplace : AnAction() {
             logD("请选中需要搜索的中文")
             return
         } else {
+            val project = e.project!!
+            val virtualFile = FileDocumentManager.getInstance().getFile(editor.document)!!
+            if (!hasCachedJsonFile(project = project, virtualFile = virtualFile)) {
+                refreshCachedJsonFile(project = project, virtualFile = virtualFile)
+            }
             var selectedText = editor.selectionModel.selectedText
             if (selectedText.isNullOrBlank()) {
                 replaceAllValueInOneFile(editor = editor, event = e)
@@ -77,7 +83,7 @@ class SearchAndReplace : AnAction() {
                         selectionEnd + 1,
                         "TranslateManager.translateProxy.${
                             result.first().first().key
-                        }()/*${itemMathResult.value.substring(1, itemMathResult.value.length - 1)}*/"
+                        }().cn(${getShowCommentText(sourceText = itemMathResult.value)})"
                     )
                 }
             }
@@ -137,7 +143,7 @@ class SearchAndReplace : AnAction() {
                 editor.document.replaceString(
                     selectionStart,
                     selectionEnd,
-                    "TranslateManager.translateProxy.${translateInfo.key}()/*$selectedText*/"
+                    "TranslateManager.translateProxy.${translateInfo.key}().cn(${getShowCommentText(sourceText = translateInfo.value)})"
                 )
             }
         }

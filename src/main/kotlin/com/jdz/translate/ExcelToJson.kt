@@ -4,6 +4,8 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.roots.ProjectFileIndex
+import com.intellij.openapi.vfs.VirtualFile
 import org.apache.poi.xssf.usermodel.XSSFSheet
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.BufferedWriter
@@ -19,7 +21,7 @@ class ExcelToJson : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
         val editor = e.getData(PlatformDataKeys.EDITOR)!!
         val manager = FileDocumentManager.getInstance()
-        var virtualFile = manager.getFile(editor.document)!!
+        val virtualFile: VirtualFile = manager.getFile(editor.document)!!
 
         val backupJsonFilePath = getBackJsonFileDir(project = e.project!!, virtualFile = virtualFile)
         logD("JSON文件存储目录:$backupJsonFilePath")
@@ -50,7 +52,7 @@ class ExcelToJson : AnAction() {
         }
 
         logD("需要转换成json的excel文件是 excelFilePath=$excelFilePath")
-        var xssfWorkbook: XSSFWorkbook? = null
+        val xssfWorkbook: XSSFWorkbook?
         xssfWorkbook = XSSFWorkbook(excelFilePath)
         val sheetCount = xssfWorkbook.numberOfSheets
         logD("excel sheet 大小等于 $sheetCount")
@@ -91,11 +93,11 @@ class ExcelToJson : AnAction() {
         }
 
         //参数个数
-        var paramsCount = 0
+        var paramsCount: Int
         //参数不一致的key
-        var errorKey = mutableSetOf<String>()
+        val errorKey = mutableSetOf<String>()
         val regex = Regex("\\{\\S+\\}")
-        var writeContentList = mutableListOf<String>()
+        val writeContentList = mutableListOf<String>()
         for (sheetIndex in 0 until sheetCount) {
             writeContentList.clear()
             val xssfSheet: XSSFSheet = xssfWorkbook.getSheetAt(sheetIndex)
@@ -109,18 +111,18 @@ class ExcelToJson : AnAction() {
                                 val itemContent = writeContentList[contentIndex]
                                 val bufferedWriter = fileMap[contentIndex + 1]!!
                                 bufferedWriter.newLine()
-                                bufferedWriter.write("$itemContent")
+                                bufferedWriter.write(itemContent)
 
                                 val backJsonFileWriter = backupJsonFileMap[contentIndex + 1]!!
                                 backJsonFileWriter.newLine()
-                                backJsonFileWriter.write("$itemContent")
+                                backJsonFileWriter.write(itemContent)
                             }
                         }
                         writeContentList.clear()
                         break
                     }
 
-                    var key = row?.getCell(0)?.toString()
+                    var key = row.getCell(0)?.toString()
                     if (key.isNullOrEmpty()) {
                         if (writeContentList.size == fileMap.size) {
                             for (contentIndex in writeContentList.indices) {
@@ -137,10 +139,10 @@ class ExcelToJson : AnAction() {
                         writeContentList.clear()
                         break
                     }
-                    try {
-                        key = "${getTranslateKeyPrefix()}${key.toFloat().toInt()}"
+                    key = try {
+                        "${getTranslateKeyPrefix()}${key.toFloat().toInt()}"
                     } catch (e: Exception) {
-                        key = "${getTranslateKeyPrefix()}$key"
+                        "${getTranslateKeyPrefix()}$key"
                     }
                     if (writeContentList.isNotEmpty() && writeContentList.size == fileMap.size) {
                         for (index in writeContentList.indices) {
@@ -160,6 +162,8 @@ class ExcelToJson : AnAction() {
                         if (columnValue.isNullOrEmpty()) {
                             columnValue = ""
                         }
+                        val comonDot = "language_comon_dot_flag"
+                        val comonN = "language_comon_n_flag"
                         columnValue = columnValue
                             .replace("%d", "{params}").replace("%s", "{params}")
                             .replace("%1d", "{params1}").replace("%2d", "{params2}")
@@ -174,7 +178,27 @@ class ExcelToJson : AnAction() {
                             .replace("\\r", "").replace("\\v", "")
                             .replace("\\f", "").replace("\\e", "")
                             .replace("\\n", "").replace("\\r\\n", "")
-                            .replace("\\\"", "\"").replace("\"", "\\\"")
+                            .replace("\"", comonDot).replace("\\\"", comonDot)
+                            .replace("\\ \n", comonN).replace("\\\n", comonN)
+
+                            .replace("%D", "{params}").replace("%S", "{params}")
+                            .replace("%1D", "{params1}").replace("%2D", "{params2}")
+                            .replace("%3D", "{params3}").replace("%4D", "{params4}")
+                            .replace("%1S", "{params1}").replace("%2S", "{params2}")
+                            .replace("%3S", "{params3}").replace("%4S", "{params4}")
+                            .replace("%1\$S", "{params1}").replace("%2\$S", "{params2}")
+                            .replace("%3\$S", "{params3}").replace("%4\$S", "{params4}")
+                            .replace("%1\$D", "{params1}").replace("%2\$D", "{params2}")
+                            .replace("%3\$D", "{params3}").replace("%4\$D", "{params4}")
+                            .replace("\\T", "").replace("\\B", "")
+                            .replace("\\R", "").replace("\\V", "")
+                            .replace("\\F", "").replace("\\E", "")
+                            .replace("\\N", "").replace("\\R\\N", "")
+                            .replace("\\ N", comonN).replace("\\\n", comonN)
+                            .replace("\\", "").replace(comonDot, "\\\"")
+                            .replace(comonN, "\\\n")
+
+
                         val lineList = columnValue.lines()
                         if (lineList.isNotEmpty()) {
                             columnValue = ""
@@ -213,5 +237,6 @@ class ExcelToJson : AnAction() {
             backupJsonFileWriter.close()
         }
         logE("参数不一致的Key=$errorKey")
+        ProjectFileIndex.getInstance(e.project!!).getContentRootForFile(e.project!!.projectFile!!)?.refresh(true,true)
     }
 }

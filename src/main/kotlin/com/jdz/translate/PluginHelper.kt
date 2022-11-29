@@ -1,17 +1,24 @@
 package com.jdz.translate
 
 import com.google.gson.Gson
+import com.intellij.execution.process.mediator.daemon.DaemonLaunchOptions
 import com.intellij.ide.plugins.PluginManager
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.ProjectManager
+import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.vcs.log.ui.details.commit.getCommitDetailsBackground
 import java.io.BufferedReader
+import java.io.BufferedWriter
 import java.io.File
 import java.io.FileReader
+import java.io.FileWriter
+import java.nio.file.Path
 import java.util.*
 
 /**
@@ -30,6 +37,20 @@ fun getBackJsonFileDir(project: Project, virtualFile: VirtualFile): String {
  */
 fun getTranslateKeyPrefix(): String {
     return "ido_key_"
+}
+
+/**
+ *获取语言翻译生成的dart文件名称
+ */
+fun getDartFileName(languageCode: String): String {
+    return "language_$languageCode.dart"
+}
+
+/**
+ *获取语言翻译生成的json文件名称
+ */
+fun getJsonFileName(languageCode: String): String {
+    return "language_$languageCode.json"
 }
 
 /**
@@ -382,7 +403,7 @@ fun findTranslateByZh(zhValue: String, event: AnActionEvent, exactSearch: Boolea
             )
             hasFinedLineNumberIndex++
         }
-        val enTranslateInfoList= mutableListOf<TranslateInfo>()
+        val enTranslateInfoList = mutableListOf<TranslateInfo>()
         for (itemTranslateInfo in zhTranslateInfoList) {
             enTranslateInfoList.add(enTranslateInfoMap[itemTranslateInfo.key]!!)
         }
@@ -454,6 +475,127 @@ fun findTranslateByZh(zhValue: String, event: AnActionEvent, exactSearch: Boolea
 //            result.add(itemTranslateInfo)
 //        }
     return result
+}
+
+/**
+ *转换翻译注释显示文本
+ * 当超过指定长度的时候，就以...结尾
+ */
+fun getShowCommentText(sourceText: String, maxLength: Int = 20): String {
+    if (sourceText.length <= maxLength) return sourceText
+    return sourceText.substring(0, maxLength).plus("...")
+}
+
+/**
+ *验证JSON文件名是否合法
+ */
+fun validJsonFileName(fileName: String): Boolean {
+    return fileName.isNotEmpty() && fileName.indexOf("_") in 1 until fileName.length - 1
+}
+
+/**
+ *获取excel转成dart文件存储路径
+ */
+fun getExportDartClassPath(project: Project): String {
+    val rootFile = ProjectFileIndex.getInstance(project).getContentRootForFile(project.projectFile!!)!!
+    return rootFile.path.plus(File.separatorChar).plus("language")
+}
+
+/**
+ *自动化添加翻译默认语种
+ */
+fun getDefaultLanguageDesc(): String {
+    return "cn"
+}
+
+/**
+ *检查本地是否缓存有JSON文件
+ */
+fun hasCachedJsonFile(project: Project, virtualFile: VirtualFile): Boolean {
+    val backJsonFilePath = getBackJsonFileDir(project = project, virtualFile = virtualFile)
+    val backupJsonFile = File(backJsonFilePath)
+    return backupJsonFile.exists() && !backupJsonFile.listFiles().isNullOrEmpty()
+}
+
+/**
+ *重新刷新缓存的JSON文件
+ */
+fun refreshCachedJsonFile(project: Project, virtualFile: VirtualFile) {
+    logD("检测到本地不存在缓存的JSON文件，开始从Dart文件中读取缓存文件内容")
+    //从dart文件中匹配key的正则表达式
+    var keyPlatter = Regex("ido_key_\\d{1,10}")
+    //从dart文件中匹配value的正则表达式
+    var valuePlatter = Regex("(\\\".*\\\"[.|;|\\n])")
+    //翻译dart文件存放目录
+    var languageDartDirPath = getExportDartClassPath(project)
+    //缓存JSON文件目录
+    var cacheJsonDirPath = getBackJsonFileDir(project = project, virtualFile = virtualFile)
+    clearDirChildFile(dirPath = cacheJsonDirPath)
+    val languageDartDirFile = File(languageDartDirPath)
+    if (!languageDartDirFile.exists()) {
+        logD("项目指定目录不存在 languageDartDirPath=$languageDartDirPath")
+        return
+    }
+    val chileFileList = languageDartDirFile.listFiles { file ->
+        file.name.endsWith(".dart") && file.name.contains("_")
+    }
+    if (chileFileList.isNullOrEmpty()) {
+        logD("项目指定目录中不存在任何Dart文件")
+        return
+    }
+    for (itemChildFile in chileFileList) {
+        val local = itemChildFile.name.substring(
+            itemChildFile.name.lastIndexOf("_") + 1,
+            itemChildFile.name.lastIndexOf(".dart")
+        ).lowercase(
+            Locale.CHINA
+        )
+        if (local.isNullOrEmpty()) continue
+        val bufferReader = BufferedReader(FileReader(itemChildFile))
+        val fileContent = bufferReader.readText()
+        bufferReader.close()
+        if (!fileContent.isNullOrEmpty()) {
+            val keyList = keyPlatter.findAll(fileContent).toList()
+            val valueList = valuePlatter.findAll(fileContent).toList()
+            logD("local=$local,itemChildFilePath=${itemChildFile.absolutePath},keySize=${keyList.count()},valueSize=${valueList.count()}")
+            if (keyList.count() == valueList.count()) {
+                val outFilePath = cacheJsonDirPath.plus(File.separatorChar).plus(getJsonFileName(languageCode = local))
+                val outFile = File(outFilePath)
+                if (outFile.exists() && outFile.isFile) {
+                    outFile.delete()
+                }
+                val bufferWriter = BufferedWriter(FileWriter(outFile))
+                bufferWriter.write("{")
+                val totalCount = keyList.count()
+                for (index in 0 until totalCount) {
+                    val itemKey = keyList[index].value
+                    val itemValue = valueList[index].value
+                    bufferWriter.newLine()
+                    if (index == totalCount - 1) {
+                        bufferWriter.write("\"$itemKey\":\"$itemValue\"")
+                    } else {
+                        bufferWriter.write("\"$itemKey\":\"$itemValue\",")
+                    }
+                }
+                bufferWriter.newLine()
+                bufferWriter.write("}")
+                bufferWriter.flush()
+                bufferWriter.close()
+            }
+        }
+    }
+}
+
+fun clearDirChildFile(dirPath: String) {
+    val dirFile = File(dirPath)
+    if (dirFile.exists() && dirFile.isDirectory) {
+        val childFileList = dirFile.listFiles()
+        if (!childFileList.isNullOrEmpty()) {
+            for (itemChildFile in childFileList) {
+                itemChildFile.delete()
+            }
+        }
+    }
 }
 
 data class TranslateInfo(var key: String, var languageCode: String, var value: String, var lineNumber: Int)

@@ -6,6 +6,7 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.roots.ProjectFileIndex
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
@@ -50,6 +51,12 @@ class GenerateDartFromJson : AnAction() {
     //默认翻译
     private val mDefaultLanguageCode = "zh"
 
+    //字符串扩展类-类名
+    private val mLanguageExtensionClassName = "LanguageDesc"
+
+    //字符串扩展类-文件名
+    private val mLanguageExtensionFileName = "language_extension.dart"
+
     override fun actionPerformed(e: AnActionEvent) {
         val editor = e.getData(PlatformDataKeys.EDITOR)!!
         val manager = FileDocumentManager.getInstance()
@@ -75,7 +82,40 @@ class GenerateDartFromJson : AnAction() {
             val dartClassInfoList = generateJsonDartClass(jsonInfoList, methodInfoList)
             generateTranslateProxyClass(currentDirectoryPath, methodInfoList)
             generateTranslateManagerDartClass(rootPath = currentDirectoryPath, dartClassInfoList = dartClassInfoList)
+            generateStringExtensionClass(dartClassInfoList)
         }
+        ProjectFileIndex.getInstance(e.project!!).getContentRootForFile(e.project!!.projectFile!!)?.refresh(true, true)
+    }
+
+    /**
+     *生成字符串扩展方法，方便更直观的查看翻译
+     */
+    private fun generateStringExtensionClass(dartClassInfoList: List<DartClassInfo>) {
+        if (dartClassInfoList.isEmpty()) return
+        var dartClassFile = File(dartClassInfoList.first().filePath)
+        val extensionsClassFile = File(dartClassFile.parent, mLanguageExtensionFileName)
+        if (extensionsClassFile.exists() && extensionsClassFile.isFile) {
+            extensionsClassFile.delete()
+        }
+        val bufferWriter = BufferedWriter(FileWriter(extensionsClassFile))
+        bufferWriter.write("extension $mLanguageExtensionClassName on String {")
+        for (index in dartClassInfoList.indices) {
+            bufferWriter.newLine()
+            if (index > 0) {
+                bufferWriter.newLine()
+            }
+            val itemDartClassInfo = dartClassInfoList[index]
+            bufferWriter.write("  String ${itemDartClassInfo.local}(String ${itemDartClassInfo.local}) {")
+            bufferWriter.newLine()
+            bufferWriter.write("    return this;")
+            bufferWriter.newLine()
+            bufferWriter.write("  }")
+        }
+        bufferWriter.newLine()
+        bufferWriter.write("}")
+        bufferWriter.newLine()
+        bufferWriter.flush()
+        bufferWriter.close()
     }
 
     /**
@@ -273,17 +313,8 @@ class GenerateDartFromJson : AnAction() {
         val classInfoList = mutableListOf<DartClassInfo>()
         for (itemJsonInfo in jsonInfoList) {
             try {
-                val fileName = itemJsonInfo.filePath.substring(
-                    itemJsonInfo.filePath.lastIndexOf(File.separator) + 1,
-                    itemJsonInfo.filePath.lastIndexOf(".")
-                )
-                val local = if (fileName.contains("-")) fileName.substring(fileName.lastIndexOf("-") + 1)
-                    .lowercase(Locale.CHINA)
-                else fileName.substring(fileName.lastIndexOf("-") + 1).lowercase(Locale.CHINA)
-                if (local.isEmpty()) continue
                 classInfoList.add(generateJsonDartClass(itemJsonInfo, methodInfoList))
             } catch (e: Exception) {
-                e.printStackTrace()
             }
         }
         return classInfoList
@@ -541,7 +572,7 @@ class GenerateDartFromJson : AnAction() {
 
     private fun isJsonFile(file: File): Boolean {
         return file.exists() && file.isFile && file.name.substring(file.name.lastIndexOf('.'))
-            .lowercase(Locale.CHINA) == ".json"
+            .lowercase(Locale.CHINA) == ".json" && validJsonFileName(fileName = file.name)
     }
 
     data class JsonInfo(val filePath: String, val valueInfoMap: MutableMap<String, ValueInfo>)

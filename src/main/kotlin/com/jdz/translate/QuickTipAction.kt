@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.ui.components.panels.VerticalLayout
 import com.intellij.ui.table.JBTable
 import java.awt.ComponentOrientation
@@ -39,6 +40,11 @@ class QuickTipAction : AnAction() {
             selectedText = selectedText.trim()
             logD("你需要搜索翻译的关键字:$selectedText")
             if (selectedText.startsWith(getTranslateKeyPrefix())) {
+                val project = e.project!!
+                val virtualFile = FileDocumentManager.getInstance().getFile(editor.document)!!
+                if (!hasCachedJsonFile(project = project, virtualFile = virtualFile)) {
+                    refreshCachedJsonFile(project = project, virtualFile = virtualFile)
+                }
                 val result = findTranslateByKey(keyValue = selectedText, event = e!!, exactSearch = false)
                 if (result.isEmpty()) {
                     logD("没有查找到任何搜索结果")
@@ -52,6 +58,11 @@ class QuickTipAction : AnAction() {
                     logD("没有查找到任何搜索结果")
                     showNotFound(editor.selectionModel.selectedText!!)
                 } else {
+                    val project = e.project!!
+                    val virtualFile = FileDocumentManager.getInstance().getFile(editor.document)!!
+                    if (!hasCachedJsonFile(project = project, virtualFile = virtualFile)) {
+                        refreshCachedJsonFile(project = project, virtualFile = virtualFile)
+                    }
                     showSearchResult(result = result)
                 }
             }
@@ -85,7 +96,7 @@ class QuickTipAction : AnAction() {
         val keyCellWidth = 200
         val normalColumnWidth = (tableWidth - keyCellWidth) / 2
         //一行做多可以显示多少个字符-以中文为主
-        val chartCountInOneLine = measureChartSizeInOneLine(font = jbTable.font, width = normalColumnWidth)*2/5
+        val chartCountInOneLine = measureChartSizeInOneLine(font = jbTable.font, width = normalColumnWidth) * 2 / 5
         //单行文字高度
         val lineHeight = 30
         for (rowIndex in 0 until rowCount) {
