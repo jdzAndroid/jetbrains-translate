@@ -573,7 +573,10 @@ class GenerateDartFromJson : AnAction() {
         bufferedWriter.newLine()
         bufferedWriter.write("class $mDefaultLocalizationClassName extends LocalizationsDelegate<$mBaseDartClassName> {")
         bufferedWriter.newLine()
-        bufferedWriter.write("  List<Locale> get supportedLocales {")
+        bufferedWriter.write("static LocalizationsDelegate<BaseTranslate> delegate = DefaultLocalizations();")
+        bufferedWriter.newLine()
+        bufferedWriter.newLine()
+        bufferedWriter.write("  static List<Locale> get supportedLocales {")
         bufferedWriter.newLine()
         bufferedWriter.write("    return const <Locale>[")
         for (itemClassInfo in dartClassInfoList) {
