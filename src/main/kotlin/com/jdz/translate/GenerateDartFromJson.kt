@@ -4,8 +4,6 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.PlatformDataKeys
-import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.roots.ProjectFileIndex
 import java.io.BufferedWriter
 import java.io.File
@@ -24,49 +22,28 @@ import java.util.*
 class GenerateDartFromJson : AnAction() {
     private val mRegex = Regex("\\{\\S+\\}")
 
-    //Dart类基类名称
-    private val mBaseDartClassName = "BaseTranslate"
-
-    //Dart类基类文件名称
-    private val mBaseDartFileName = "base_translate.dart"
-
-    //获取翻译的代理Dart Class 类名
-    private val mProxyDartClassName = "TranslateProxy"
-
-    //获取翻译的代理Dart Class文件名
-    private val mProxyDartFileName = "translate_proxy.dart"
-
-    //获取翻译的管理Dart Class 类名
-    private val mManagerDartClassName = "TranslateManager"
-
-    //获取翻译的管理Dart Class文件名
-    private val mManagerDartFileName = "translate_manager.dart"
-
     //用于存储中文Dart Class 类名
     private var mDefaultDartClassName = ""
 
     //用于存储中文Dart实体文件名
     private var mDefaultDartFileName = ""
 
-    //默认翻译
-    private val mDefaultLanguageCode = "zh"
-
-    //字符串扩展类-类名
-    private val mLanguageExtensionClassName = "LanguageDesc"
-
-    //字符串扩展类-文件名
-    private val mLanguageExtensionFileName = "language_extension.dart"
-
-    override fun actionPerformed(e: AnActionEvent) {
-        val editor = e.getData(PlatformDataKeys.EDITOR)!!
-        val manager = FileDocumentManager.getInstance()
-        val virtualFile = manager.getFile(editor.document)!!
-        val currentDirectoryPath = virtualFile.parent.path
-        logD("开始将json文件转换成dart文件 currentDirectoryPath=$currentDirectoryPath")
+    override fun actionPerformed(event: AnActionEvent) {
+        val backupJsonFileDirPath = getBackJsonFileDir(event)
+        val dartFileDirPath = getExportDartClassPath(event)
+        logD("开始将json文件转换成dart文件 backupJsonFileDirPath=$backupJsonFileDirPath,dartFileDirPath=$dartFileDirPath")
+        val dartDirFile = File(dartFileDirPath)
+        if (!dartDirFile.exists()) {
+            dartDirFile.mkdirs()
+        }
         //存储当前目录下面的所有json文件的绝对路径
         val jsonFilePathList = mutableListOf<String>()
         logD("开始查找当前目录下面的所有JSON格式的文件")
-        collectAllJsonFile(directoryPath = currentDirectoryPath, jsonFilePathList = jsonFilePathList)
+        collectAllJsonFile(directoryPath = backupJsonFileDirPath, jsonFilePathList = jsonFilePathList)
+        val jsonFileDir=File(backupJsonFileDirPath)
+        if (!jsonFileDir.exists()||!jsonFileDir.isDirectory){
+            jsonFileDir.mkdirs()
+        }
         if (jsonFilePathList.isEmpty()) {
             logE("在该目录下面没有找到任何JSON文件")
             return
@@ -78,13 +55,14 @@ class GenerateDartFromJson : AnAction() {
         }
         val methodInfoList = collectMethodInfo(jsonInfoList)
         if (methodInfoList.isNotEmpty()) {
-            generateBaseDartClass(currentDirectoryPath, methodInfoList)
-            val dartClassInfoList = generateJsonDartClass(jsonInfoList, methodInfoList)
-            generateTranslateProxyClass(currentDirectoryPath, methodInfoList)
-            generateTranslateManagerDartClass(rootPath = currentDirectoryPath, dartClassInfoList = dartClassInfoList)
+            generateBaseDartClass(dartFileDirPath, methodInfoList)
+            val dartClassInfoList = generateJsonDartClass(dartFileDirPath, jsonInfoList, methodInfoList)
+            generateTranslateProxyClass(dartFileDirPath, methodInfoList)
+            generateTranslateManagerDartClass(rootPath = dartFileDirPath, dartClassInfoList = dartClassInfoList)
             generateStringExtensionClass(dartClassInfoList)
+            generateDefaultLanguageLocalization(dartClassInfoList)
         }
-        ProjectFileIndex.getInstance(e.project!!).getContentRootForFile(e.project!!.projectFile!!)?.refresh(true, true)
+        ProjectFileIndex.getInstance(event.project!!).getContentRootForFile(event.project!!.projectFile!!)?.refresh(true, true)
     }
 
     /**
@@ -160,7 +138,7 @@ class GenerateDartFromJson : AnAction() {
         bufferedWriter.write("    switch (languageCode.toLowerCase()) {")
         var defaultTranslate = dartClassInfoList.first()
         for (itemDartClassInfo in dartClassInfoList) {
-            if (itemDartClassInfo.local == mDefaultLanguageCode) {
+            if (itemDartClassInfo.local == getDefaultLanguageDesc()) {
                 defaultTranslate = itemDartClassInfo
                 continue
             }
@@ -195,10 +173,10 @@ class GenerateDartFromJson : AnAction() {
     /**
      *生成获取翻译的代理Dart Class
      */
-    private fun generateTranslateProxyClass(rootPath: String, methodInfoList: List<MethodInfo>) {
+    private fun generateTranslateProxyClass(dartFileDirPath: String, methodInfoList: List<MethodInfo>) {
         val baseDartPackageImport = "import '$mBaseDartFileName';"
-        val dartClassFilePath = if (rootPath.endsWith(File.separator)) rootPath.plus(mProxyDartFileName)
-        else rootPath.plus(File.separator).plus(mProxyDartFileName)
+        val dartClassFilePath = if (dartFileDirPath.endsWith(File.separator)) dartFileDirPath.plus(mProxyDartFileName)
+        else dartFileDirPath.plus(File.separator).plus(mProxyDartFileName)
         logD("dartClassFilePath=$dartClassFilePath")
         val dartClassFile = File(dartClassFilePath)
         if (dartClassFile.exists() && dartClassFile.isFile) {
@@ -307,24 +285,28 @@ class GenerateDartFromJson : AnAction() {
      *开始生成每个Json文件对应的Dart Class
      */
     private fun generateJsonDartClass(
+        dartFileDirPath: String,
         jsonInfoList: List<JsonInfo>,
         methodInfoList: List<MethodInfo>
     ): List<DartClassInfo> {
         val classInfoList = mutableListOf<DartClassInfo>()
         for (itemJsonInfo in jsonInfoList) {
             try {
-                classInfoList.add(generateJsonDartClass(itemJsonInfo, methodInfoList))
+                classInfoList.add(generateJsonDartClass(dartFileDirPath, itemJsonInfo, methodInfoList))
             } catch (e: Exception) {
             }
         }
         return classInfoList
     }
 
-    private fun generateJsonDartClass(jsonInfo: JsonInfo, methodInfoList: List<MethodInfo>): DartClassInfo {
+    private fun generateJsonDartClass(
+        dartFileDirPath: String,
+        jsonInfo: JsonInfo,
+        methodInfoList: List<MethodInfo>
+    ): DartClassInfo {
         val jsonFile = File(jsonInfo.filePath)
-        val pFilePath = jsonFile.parentFile.absolutePath
         val baseDartPackageImport = "import '$mBaseDartFileName';"
-        val dartClassFilePath = pFilePath.plus(File.separator).plus(
+        val dartClassFilePath = dartFileDirPath.plus(File.separator).plus(
             jsonFile.name.substring(0, jsonFile.name.indexOf(".")).lowercase(
                 Locale.CHINA
             )
@@ -337,7 +319,7 @@ class GenerateDartFromJson : AnAction() {
         dartClassFile.createNewFile()
         val languageCode = jsonFile.name.substring(jsonFile.name.lastIndexOf("_") + 1, jsonFile.name.lastIndexOf("."))
         val dartClassName = getDartClassName(dartClassFile.name)
-        if (languageCode == mDefaultLanguageCode || (mDefaultDartFileName.isEmpty() || mDefaultDartClassName.isEmpty())) {
+        if (languageCode == getDefaultLanguageDesc() || (mDefaultDartFileName.isEmpty() || mDefaultDartClassName.isEmpty())) {
             mDefaultDartClassName = dartClassName
             mDefaultDartFileName = dartClassFile.name
         }
@@ -568,6 +550,87 @@ class GenerateDartFromJson : AnAction() {
                 }
             }
         }
+    }
+
+    /**
+     *生成本地国际化默认代理类
+     */
+    private fun generateDefaultLanguageLocalization(dartClassInfoList: List<DartClassInfo>) {
+        if (dartClassInfoList.isNullOrEmpty()) return
+        var dartFile = File(dartClassInfoList.first().filePath)
+        val localizationFile = File(dartFile.parent, mDefaultLocalizationFileName)
+        if (localizationFile.exists() && localizationFile.isFile) {
+            localizationFile.delete()
+        }
+        localizationFile.createNewFile()
+        val bufferedWriter = BufferedWriter(FileWriter(localizationFile))
+        bufferedWriter.write("import 'base_translate.dart';")
+        bufferedWriter.newLine()
+        bufferedWriter.write("import 'package:flutter/material.dart';")
+        bufferedWriter.newLine()
+        bufferedWriter.write("import 'translate_manager.dart';")
+        bufferedWriter.newLine()
+        bufferedWriter.newLine()
+        bufferedWriter.write("class $mDefaultLocalizationClassName extends LocalizationsDelegate<$mBaseDartClassName> {")
+        bufferedWriter.newLine()
+        bufferedWriter.write("  List<Locale> get supportedLocales {")
+        bufferedWriter.newLine()
+        bufferedWriter.write("    return const <Locale>[")
+        for (itemClassInfo in dartClassInfoList) {
+            bufferedWriter.newLine()
+            bufferedWriter.write("      Locale.fromSubtags(languageCode: '${itemClassInfo.local}'),")
+        }
+        bufferedWriter.newLine()
+        bufferedWriter.write("    ];")
+        bufferedWriter.newLine()
+        bufferedWriter.write("  }")
+        bufferedWriter.newLine()
+        bufferedWriter.newLine()
+        bufferedWriter.write("  @override")
+        bufferedWriter.newLine()
+        bufferedWriter.write("  bool isSupported(Locale locale) => _isSupported(locale);")
+        bufferedWriter.newLine()
+        bufferedWriter.newLine()
+        bufferedWriter.write("  @override")
+        bufferedWriter.newLine()
+        bufferedWriter.write("  Future<BaseTranslate> load(Locale locale) {")
+        bufferedWriter.newLine()
+        bufferedWriter.write("    TranslateManager.localeChanged(languageCode: locale.languageCode);")
+        bufferedWriter.newLine()
+        bufferedWriter.write("    return Future(() => TranslateManager.translateProxy);")
+        bufferedWriter.newLine()
+        bufferedWriter.write("  }")
+        bufferedWriter.newLine()
+        bufferedWriter.newLine()
+        bufferedWriter.write("  @override")
+        bufferedWriter.newLine()
+        bufferedWriter.write("  bool shouldReload(covariant LocalizationsDelegate<BaseTranslate> old) {")
+        bufferedWriter.newLine()
+        bufferedWriter.write("    return false;")
+        bufferedWriter.newLine()
+        bufferedWriter.write("  }")
+        bufferedWriter.newLine()
+        bufferedWriter.newLine()
+        bufferedWriter.write("  bool _isSupported(Locale locale) {")
+        bufferedWriter.newLine()
+        bufferedWriter.write("    for (var supportedLocale in supportedLocales) {")
+        bufferedWriter.newLine()
+        bufferedWriter.write("      if (supportedLocale.languageCode == locale.languageCode) {")
+        bufferedWriter.newLine()
+        bufferedWriter.write("       return true;")
+        bufferedWriter.newLine()
+        bufferedWriter.write("      }")
+        bufferedWriter.newLine()
+        bufferedWriter.write("    }")
+        bufferedWriter.newLine()
+        bufferedWriter.write("    return false;")
+        bufferedWriter.newLine()
+        bufferedWriter.write("  }")
+        bufferedWriter.newLine()
+        bufferedWriter.write("}")
+        bufferedWriter.newLine()
+        bufferedWriter.flush()
+        bufferedWriter.close()
     }
 
     private fun isJsonFile(file: File): Boolean {

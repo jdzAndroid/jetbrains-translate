@@ -5,7 +5,6 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.util.TextRange
 import com.intellij.ui.components.panels.VerticalLayout
 import java.awt.Font
@@ -25,22 +24,20 @@ import kotlin.math.roundToInt
  * 2，通过中文搜索，如果找到了完全匹配的中文（不包含特殊符号），就直接替换成代码
  */
 class SearchAndReplace : AnAction() {
-    override fun actionPerformed(e: AnActionEvent) {
-        val editor = e.getRequiredData(PlatformDataKeys.EDITOR)
+    override fun actionPerformed(event: AnActionEvent) {
+        val editor = event.getRequiredData(PlatformDataKeys.EDITOR)
         if (editor == null) {
             logD("请选中需要搜索的中文")
             return
         } else {
-            val project = e.project!!
-            val virtualFile = FileDocumentManager.getInstance().getFile(editor.document)!!
-            if (!hasCachedJsonFile(project = project, virtualFile = virtualFile)) {
-                refreshCachedJsonFile(project = project, virtualFile = virtualFile)
+            if (!hasCachedJsonFile(event)) {
+                refreshCachedJsonFile(event)
             }
             var selectedText = editor.selectionModel.selectedText
             if (selectedText.isNullOrBlank()) {
-                replaceAllValueInOneFile(editor = editor, event = e)
+                replaceAllValueInOneFile(editor = editor, event = event)
             } else {
-                replaceSingleValueInOneFile(selectedText = selectedText, editor = editor, event = e)
+                replaceSingleValueInOneFile(selectedText = selectedText, editor = editor, event = event)
             }
         }
     }
@@ -83,7 +80,7 @@ class SearchAndReplace : AnAction() {
                         selectionEnd + 1,
                         "TranslateManager.translateProxy.${
                             result.first().first().key
-                        }().cn(${getShowCommentText(sourceText = itemMathResult.value)})"
+                        }().cn(\"${getShowCommentText(sourceText = itemMathResult.value)}\")"
                     )
                 }
             }
@@ -143,7 +140,7 @@ class SearchAndReplace : AnAction() {
                 editor.document.replaceString(
                     selectionStart,
                     selectionEnd,
-                    "TranslateManager.translateProxy.${translateInfo.key}().cn(${getShowCommentText(sourceText = translateInfo.value)})"
+                    "TranslateManager.translateProxy.${translateInfo.key}().cn(\"${getShowCommentText(sourceText = translateInfo.value)}\")"
                 )
             }
         }

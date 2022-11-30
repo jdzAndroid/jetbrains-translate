@@ -18,12 +18,12 @@ import java.util.*
  * Excel 转JSON
  */
 class ExcelToJson : AnAction() {
-    override fun actionPerformed(e: AnActionEvent) {
-        val editor = e.getData(PlatformDataKeys.EDITOR)!!
+    override fun actionPerformed(event: AnActionEvent) {
+        val editor = event.getData(PlatformDataKeys.EDITOR)!!
         val manager = FileDocumentManager.getInstance()
         val virtualFile: VirtualFile = manager.getFile(editor.document)!!
 
-        val backupJsonFilePath = getBackJsonFileDir(project = e.project!!, virtualFile = virtualFile)
+        val backupJsonFilePath = getBackJsonFileDir(event)
         logD("JSON文件存储目录:$backupJsonFilePath")
         val backupJsonFile = File(backupJsonFilePath)
         if (!backupJsonFile.exists() || !backupJsonFile.isDirectory) {
@@ -59,8 +59,6 @@ class ExcelToJson : AnAction() {
         if (sheetCount == 0) {
             return
         }
-        //每一列的文件
-        val fileMap = mutableMapOf<Int, BufferedWriter>()
         //备份的json文件，为后面的翻译搜索以及快捷提示做准备
         val backupJsonFileMap = mutableMapOf<Int, BufferedWriter>()
 
@@ -72,15 +70,7 @@ class ExcelToJson : AnAction() {
                 logD("error name sampleIndex=$sampleIndex")
                 break
             }
-            val itemJsonFileName = "veryfit_${sampleName.lowercase(Locale.CHINA)}.json"
-            val jsonFile = File(virtualFile.parent.path, itemJsonFileName)
-            if (jsonFile.exists() && jsonFile.isFile) {
-                jsonFile.delete()
-            }
-            jsonFile.createNewFile()
-            val bufferedWriter = BufferedWriter(FileWriter(jsonFile))
-            bufferedWriter.write("{")
-            fileMap[sampleIndex] = bufferedWriter
+            val itemJsonFileName = getJsonFileName(sampleName.lowercase(Locale.CHINA))
 
             val backupJsonFile = File(backupJsonFile, itemJsonFileName)
             if (backupJsonFile.exists() && backupJsonFile.isFile) {
@@ -106,13 +96,9 @@ class ExcelToJson : AnAction() {
                 try {
                     val row = xssfSheet.getRow(rowIndex)
                     if (row == null) {
-                        if (writeContentList.size == fileMap.size) {
+                        if (writeContentList.size == backupJsonFileMap.size) {
                             for (contentIndex in writeContentList.indices) {
                                 val itemContent = writeContentList[contentIndex]
-                                val bufferedWriter = fileMap[contentIndex + 1]!!
-                                bufferedWriter.newLine()
-                                bufferedWriter.write(itemContent)
-
                                 val backJsonFileWriter = backupJsonFileMap[contentIndex + 1]!!
                                 backJsonFileWriter.newLine()
                                 backJsonFileWriter.write(itemContent)
@@ -124,13 +110,9 @@ class ExcelToJson : AnAction() {
 
                     var key = row.getCell(0)?.toString()
                     if (key.isNullOrEmpty()) {
-                        if (writeContentList.size == fileMap.size) {
+                        if (writeContentList.size == backupJsonFileMap.size) {
                             for (contentIndex in writeContentList.indices) {
                                 val itemContent = writeContentList[contentIndex]
-                                val bufferedWriter = fileMap[contentIndex + 1]!!
-                                bufferedWriter.newLine()
-                                bufferedWriter.write("$itemContent")
-
                                 val backupJsonWriter = backupJsonFileMap[contentIndex + 1]!!
                                 backupJsonWriter.newLine()
                                 backupJsonWriter.write("$itemContent")
@@ -144,20 +126,16 @@ class ExcelToJson : AnAction() {
                     } catch (e: Exception) {
                         "${getTranslateKeyPrefix()}$key"
                     }
-                    if (writeContentList.isNotEmpty() && writeContentList.size == fileMap.size) {
+                    if (writeContentList.isNotEmpty() && writeContentList.size == backupJsonFileMap.size) {
                         for (index in writeContentList.indices) {
                             val itemContent = writeContentList[index]
-                            val bufferedWriter = fileMap[index + 1]!!
-                            bufferedWriter.newLine()
-                            bufferedWriter.write("$itemContent,")
-
                             val backupJsonWriter = backupJsonFileMap[index + 1]!!
                             backupJsonWriter.newLine()
                             backupJsonWriter.write("$itemContent,")
                         }
                     }
                     writeContentList.clear()
-                    for (columnIndex in 0 until fileMap.size) {
+                    for (columnIndex in 0 until backupJsonFileMap.size) {
                         var columnValue = row.getCell(columnIndex + 1)?.toString()
                         if (columnValue.isNullOrEmpty()) {
                             columnValue = ""
@@ -223,13 +201,6 @@ class ExcelToJson : AnAction() {
                 }
             }
         }
-        for (bufferedWriter in fileMap.values) {
-            bufferedWriter.newLine()
-            bufferedWriter.write("}")
-            bufferedWriter.flush()
-            bufferedWriter.close()
-        }
-
         for (backupJsonFileWriter in backupJsonFileMap.values) {
             backupJsonFileWriter.newLine()
             backupJsonFileWriter.write("}")
@@ -237,6 +208,6 @@ class ExcelToJson : AnAction() {
             backupJsonFileWriter.close()
         }
         logE("参数不一致的Key=$errorKey")
-        ProjectFileIndex.getInstance(e.project!!).getContentRootForFile(e.project!!.projectFile!!)?.refresh(true,true)
+        ProjectFileIndex.getInstance(event.project!!).getContentRootForFile(event.project!!.projectFile!!)?.refresh(true, true)
     }
 }

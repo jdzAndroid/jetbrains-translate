@@ -3,9 +3,9 @@ package com.jdz.translate
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.util.TextRange
-import org.jetbrains.plugins.notebooks.editor.getCells
 import kotlin.math.min
 
 /**
@@ -17,21 +17,65 @@ import kotlin.math.min
  */
 class AutoAddLanguageDesc : AnAction() {
 
-    override fun actionPerformed(e: AnActionEvent) {
+    override fun actionPerformed(event: AnActionEvent) {
+        if (!hasCachedJsonFile(event)) {
+            refreshCachedJsonFile(event)
+        }
+        showLanguageDescDialog(event)
+    }
+
+    /**
+     *显示选择弹框填充指定语言的翻译
+     */
+    private fun showLanguageDescDialog(e: AnActionEvent) {
         val editor = e.getRequiredData(PlatformDataKeys.EDITOR)
         var selectedText = editor.selectionModel.selectedText
         if (selectedText.isNullOrBlank()) {
             appendAllLanguageDesc(e = e, editor = editor)
         } else {
-            appendSpecialLanguageDesc(languageCode = getDefaultLanguageDesc(), selectedDartClass =)
+            appendSpecialLanguageDesc(
+                languageCode = getDefaultLanguageDesc(),
+                selectedText = selectedText,
+                event = e,
+                editor = editor
+            )
         }
+
     }
 
     /**
      *遍历整个文件，将翻译注释补齐
      */
     private fun appendAllLanguageDesc(e: AnActionEvent, editor: Editor) {
-
+        //全局匹配翻译
+        val platter = Regex(".*.\\(\\)")
+        val allContent = editor.document.text
+        if (allContent.isNullOrEmpty()) {
+            logD("文档内容为空")
+            return
+        }
+        val mathResultList = platter.findAll(allContent).toList()
+        if (mathResultList.isNullOrEmpty()) {
+            return
+        }
+        val size = mathResultList.size
+        for (index in size - 1 downTo 0) {
+            val itemMathResult = mathResultList[index]
+            var key=itemMathResult.value.trim()
+            key = key.substring(key.lastIndexOf("." )+ 1, key.length - 2)
+            val findResult = findTranslateByKey(keyValue = key, event = e, exactSearch = true)
+            logD("languageDesc key=$key")
+            if (findResult.isNullOrEmpty()) {
+                logD("没有找到对应的翻译或者对应的翻译不存在 key=$key")
+                return
+            }
+            WriteCommandAction.runWriteCommandAction(e.project!!) {
+                editor.document.insertString(
+                    itemMathResult.range.last + 1,
+                    ".cn(\"${getShowCommentText(sourceText = findResult.first().first().value)}\")"
+                )
+            }
+        }
     }
 
     /**
@@ -51,7 +95,6 @@ class AutoAddLanguageDesc : AnAction() {
             )
         )
         //校验选中文本后面是否是()并且紧跟后面的不是.,排除空格
-        var endChartIndex = -1
         val startIndex = sampleText.indexOf(selectedText)
         if (startIndex > -1) {
             val selectedTextEndIndex = startIndex + selectedText.length - 1
@@ -60,34 +103,51 @@ class AutoAddLanguageDesc : AnAction() {
             var findEndFixIndex = -1
             while (!valid) {
                 for (index in selectedTextEndIndex + 1 until sampleText.length) {
-                    val itemChart = sampleText[index]
-                    when (itemChart) {
+                    when (sampleText[index]) {
                         '(' -> {
                             findPreFixIndex = index
-                            if (findEndFixIndex<=findPreFixIndex){
+                            if (findEndFixIndex > -1 && findEndFixIndex <= findPreFixIndex) {
                                 break
                             }
                         }
 
                         ')' -> {
                             findEndFixIndex = index
-                            if (findEndFixIndex<=findPreFixIndex){
+                            if (findEndFixIndex <= findPreFixIndex) {
                                 break
                             }
-                            if (findPreFixIndex>-1){
-                                valid=true
+                            if (findPreFixIndex > -1) {
+                                valid = true
+                                break
                             }
                         }
-                        ' '->{
+
+                        ' ' -> {
 
                         }
-                        else->{
-                            if (findPreFixIndex<0||findEndFixIndex<0){
+
+                        else -> {
+                            if (findPreFixIndex < 0 || findEndFixIndex < 0) {
                                 break
                             }
                         }
                     }
                 }
+            }
+            if (!valid) {
+                logD("选中的文本不合法")
+                return
+            }
+            val findResult = findTranslateByKey(keyValue = selectedText, event = event, exactSearch = true)
+            if (findResult.isNullOrEmpty()) {
+                logD("没有找到对应的翻译或者对应的翻译不存在 selectedText=$selectedText")
+                return
+            }
+            WriteCommandAction.runWriteCommandAction(event.project!!) {
+                editor.document.insertString(
+                    selectionModel.selectionEnd+findEndFixIndex-selectedText.length+1,
+                    ".cn(\"${getShowCommentText(sourceText = findResult.first().first().value)}\")"
+                )
             }
         } else {
             logD("出现异常")

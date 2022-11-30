@@ -1,35 +1,40 @@
 package com.jdz.translate
 
 import com.google.gson.Gson
-import com.intellij.execution.process.mediator.daemon.DaemonLaunchOptions
 import com.intellij.ide.plugins.PluginManager
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.vcs.log.ui.details.commit.getCommitDetailsBackground
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
-import java.nio.file.Path
 import java.util.*
 
 /**
  *获取存储备份的JSON文件路径
  */
-fun getBackJsonFileDir(project: Project, virtualFile: VirtualFile): String {
+fun getBackJsonFileDir(event: AnActionEvent): String {
     val pluginId = PluginId.getId("org.jdz.translate.translate")
     val plugin = PluginManager.getPlugin(pluginId)!!
     val pluginInstallPath = plugin.path.absolutePath
-    val rootFile = ProjectRootManager.getInstance(project).fileIndex.getContentRootForFile(virtualFile)!!
+    val rootFile =
+        ProjectRootManager.getInstance(event.project!!).fileIndex.getContentRootForFile(event.project!!.projectFile!!)!!
     return pluginInstallPath.plus(File.separatorChar).plus(rootFile.name)
+}
+
+/**
+ *获取excel转成dart文件存储路径
+ */
+fun getExportDartClassPath(event: AnActionEvent): String {
+    val rootFile = ProjectFileIndex.getInstance(event.project!!).getContentRootForFile(event.project!!.projectFile!!)!!
+    return rootFile.path.plus(File.separatorChar).plus("lib").plus(File.separatorChar).plus("language")
 }
 
 /**
@@ -75,8 +80,7 @@ fun findTranslateByKey(keyValue: String, event: AnActionEvent, exactSearch: Bool
     logD("开始通过key查找翻译信息")
     val editor = event.getData(PlatformDataKeys.EDITOR)!!
     val manager = FileDocumentManager.getInstance()
-    val virtualFile = manager.getFile(editor.document)!!
-    val backupJsonDirPath = getBackJsonFileDir(project = event.project!!, virtualFile = virtualFile)
+    val backupJsonDirPath = getBackJsonFileDir(event)
     val backupJsonFile = File(backupJsonDirPath)
     val childFileList = backupJsonFile.listFiles()
     if (!backupJsonFile.exists() || !backupJsonFile.isDirectory || childFileList.isNullOrEmpty()) {
@@ -259,8 +263,7 @@ fun findTranslateByZh(zhValue: String, event: AnActionEvent, exactSearch: Boolea
     logD("开始通过中文查找翻译信息")
     val editor = event.getData(PlatformDataKeys.EDITOR)!!
     val manager = FileDocumentManager.getInstance()
-    val virtualFile = manager.getFile(editor.document)!!
-    val backupJsonDirPath = getBackJsonFileDir(project = event.project!!, virtualFile = virtualFile)
+    val backupJsonDirPath = getBackJsonFileDir(event)
     val backupJsonFile = File(backupJsonDirPath)
     val childFileList = backupJsonFile.listFiles()
     if (!backupJsonFile.exists() || !backupJsonFile.isDirectory || childFileList.isNullOrEmpty()) {
@@ -494,50 +497,47 @@ fun validJsonFileName(fileName: String): Boolean {
 }
 
 /**
- *获取excel转成dart文件存储路径
- */
-fun getExportDartClassPath(project: Project): String {
-    val rootFile = ProjectFileIndex.getInstance(project).getContentRootForFile(project.projectFile!!)!!
-    return rootFile.path.plus(File.separatorChar).plus("language")
-}
-
-/**
  *自动化添加翻译默认语种
  */
 fun getDefaultLanguageDesc(): String {
-    return "cn"
+    return "zh"
 }
 
 /**
  *检查本地是否缓存有JSON文件
  */
-fun hasCachedJsonFile(project: Project, virtualFile: VirtualFile): Boolean {
-    val backJsonFilePath = getBackJsonFileDir(project = project, virtualFile = virtualFile)
+fun hasCachedJsonFile(event:AnActionEvent): Boolean {
+    val backJsonFilePath = getBackJsonFileDir(event)
+    logD("开始查找本地是否存在缓存的JSON文件 backJsonFilePath=$backJsonFilePath")
     val backupJsonFile = File(backJsonFilePath)
-    return backupJsonFile.exists() && !backupJsonFile.listFiles().isNullOrEmpty()
+    return backupJsonFile.exists()&&backupJsonFile.isDirectory && !backupJsonFile.listFiles().isNullOrEmpty()
 }
 
 /**
  *重新刷新缓存的JSON文件
  */
-fun refreshCachedJsonFile(project: Project, virtualFile: VirtualFile) {
+fun refreshCachedJsonFile(event:AnActionEvent) {
     logD("检测到本地不存在缓存的JSON文件，开始从Dart文件中读取缓存文件内容")
     //从dart文件中匹配key的正则表达式
     var keyPlatter = Regex("ido_key_\\d{1,10}")
     //从dart文件中匹配value的正则表达式
     var valuePlatter = Regex("(\\\".*\\\"[.|;|\\n])")
     //翻译dart文件存放目录
-    var languageDartDirPath = getExportDartClassPath(project)
+    var languageDartDirPath = getExportDartClassPath(event)
     //缓存JSON文件目录
-    var cacheJsonDirPath = getBackJsonFileDir(project = project, virtualFile = virtualFile)
+    var cacheJsonDirPath = getBackJsonFileDir(event)
     clearDirChildFile(dirPath = cacheJsonDirPath)
+    val cacheDir=File(cacheJsonDirPath)
+    if (!cacheDir.exists()||!cacheDir.isDirectory){
+        cacheDir.mkdirs()
+    }
     val languageDartDirFile = File(languageDartDirPath)
     if (!languageDartDirFile.exists()) {
         logD("项目指定目录不存在 languageDartDirPath=$languageDartDirPath")
         return
     }
     val chileFileList = languageDartDirFile.listFiles { file ->
-        file.name.endsWith(".dart") && file.name.contains("_")
+        file.name.endsWith(".dart") && file.name.contains("_") && file.name.startsWith("language_")
     }
     if (chileFileList.isNullOrEmpty()) {
         logD("项目指定目录中不存在任何Dart文件")
@@ -564,17 +564,21 @@ fun refreshCachedJsonFile(project: Project, virtualFile: VirtualFile) {
                 if (outFile.exists() && outFile.isFile) {
                     outFile.delete()
                 }
+                outFile.createNewFile()
                 val bufferWriter = BufferedWriter(FileWriter(outFile))
                 bufferWriter.write("{")
                 val totalCount = keyList.count()
                 for (index in 0 until totalCount) {
                     val itemKey = keyList[index].value
-                    val itemValue = valueList[index].value
+                    var itemValue = valueList[index].value.trim()
+                    if (itemValue.endsWith(".")||itemValue.endsWith(";")){
+                        itemValue=itemValue.substring(0,itemValue.length-1)
+                    }
                     bufferWriter.newLine()
                     if (index == totalCount - 1) {
-                        bufferWriter.write("\"$itemKey\":\"$itemValue\"")
+                        bufferWriter.write("\"$itemKey\":$itemValue")
                     } else {
-                        bufferWriter.write("\"$itemKey\":\"$itemValue\",")
+                        bufferWriter.write("\"$itemKey\":$itemValue,")
                     }
                 }
                 bufferWriter.newLine()

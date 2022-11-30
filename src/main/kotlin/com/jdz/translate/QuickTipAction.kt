@@ -4,7 +4,6 @@ import com.google.gson.Gson
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
-import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.ui.components.panels.VerticalLayout
 import com.intellij.ui.table.JBTable
 import java.awt.ComponentOrientation
@@ -25,46 +24,37 @@ import kotlin.math.roundToInt
  * 翻译快速搜索提示
  */
 class QuickTipAction : AnAction() {
-    override fun actionPerformed(e: AnActionEvent) {
-        val editor = e.getRequiredData(PlatformDataKeys.EDITOR)
-        if (editor == null) {
+    override fun actionPerformed(event: AnActionEvent) {
+        val editor = event.getRequiredData(PlatformDataKeys.EDITOR)
+        var selectedText = editor.selectionModel.selectedText
+        if (selectedText.isNullOrBlank()) {
             logD("请选中需要搜索的中文")
             return
-        } else {
-            var selectedText = editor.selectionModel.selectedText
-            if (selectedText.isNullOrBlank()) {
-                logD("请选中需要搜索的中文")
-                return
-            }
+        }
 
-            selectedText = selectedText.trim()
-            logD("你需要搜索翻译的关键字:$selectedText")
-            if (selectedText.startsWith(getTranslateKeyPrefix())) {
-                val project = e.project!!
-                val virtualFile = FileDocumentManager.getInstance().getFile(editor.document)!!
-                if (!hasCachedJsonFile(project = project, virtualFile = virtualFile)) {
-                    refreshCachedJsonFile(project = project, virtualFile = virtualFile)
-                }
-                val result = findTranslateByKey(keyValue = selectedText, event = e!!, exactSearch = false)
-                if (result.isEmpty()) {
-                    logD("没有查找到任何搜索结果")
-                    showNotFound(editor.selectionModel.selectedText!!)
-                } else {
-                    showSearchResult(result = result)
-                }
+        selectedText = selectedText.trim()
+        logD("你需要搜索翻译的关键字:$selectedText")
+        if (selectedText.startsWith(getTranslateKeyPrefix())) {
+            if (!hasCachedJsonFile(event)) {
+                refreshCachedJsonFile(event)
+            }
+            val result = findTranslateByKey(keyValue = selectedText, event = event, exactSearch = false)
+            if (result.isEmpty()) {
+                logD("没有查找到任何搜索结果")
+                showNotFound(editor.selectionModel.selectedText!!)
             } else {
-                val result = findTranslateByZh(zhValue = selectedText, event = e!!, exactSearch = false)
-                if (result.isEmpty()) {
-                    logD("没有查找到任何搜索结果")
-                    showNotFound(editor.selectionModel.selectedText!!)
-                } else {
-                    val project = e.project!!
-                    val virtualFile = FileDocumentManager.getInstance().getFile(editor.document)!!
-                    if (!hasCachedJsonFile(project = project, virtualFile = virtualFile)) {
-                        refreshCachedJsonFile(project = project, virtualFile = virtualFile)
-                    }
-                    showSearchResult(result = result)
+                showSearchResult(result = result)
+            }
+        } else {
+            val result = findTranslateByZh(zhValue = selectedText, event = event, exactSearch = false)
+            if (result.isEmpty()) {
+                logD("没有查找到任何搜索结果")
+                showNotFound(editor.selectionModel.selectedText!!)
+            } else {
+                if (!hasCachedJsonFile(event)) {
+                    refreshCachedJsonFile(event)
                 }
+                showSearchResult(result = result)
             }
         }
     }
