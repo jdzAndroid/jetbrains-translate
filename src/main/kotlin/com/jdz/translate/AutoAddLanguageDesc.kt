@@ -72,7 +72,7 @@ class AutoAddLanguageDesc : AnAction() {
             WriteCommandAction.runWriteCommandAction(e.project!!) {
                 editor.document.insertString(
                     itemMathResult.range.last + 1,
-                    ".cn(\"${getShowCommentText(sourceText = findResult.first().first().value)}\")"
+                    ".${getDefaultLanguageDesc()}(\"${getShowCommentText(sourceText = findResult.first().first().value)}\")"
                 )
             }
         }
@@ -146,7 +146,7 @@ class AutoAddLanguageDesc : AnAction() {
             WriteCommandAction.runWriteCommandAction(event.project!!) {
                 editor.document.insertString(
                     selectionModel.selectionEnd+findEndFixIndex-selectedText.length+1,
-                    ".cn(\"${getShowCommentText(sourceText = findResult.first().first().value)}\")"
+                    ".${getDefaultLanguageDesc()}(\"${getShowCommentText(sourceText = findResult.first().first().value)}\")"
                 )
             }
         } else {

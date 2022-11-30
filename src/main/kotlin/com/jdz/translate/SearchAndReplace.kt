@@ -80,7 +80,7 @@ class SearchAndReplace : AnAction() {
                         selectionEnd + 1,
                         "TranslateManager.translateProxy.${
                             result.first().first().key
-                        }().cn(\"${getShowCommentText(sourceText = itemMathResult.value)}\")"
+                        }().${getDefaultLanguageDesc()}(\"${getShowCommentText(sourceText = itemMathResult.value)}\")"
                     )
                 }
             }
@@ -140,7 +140,7 @@ class SearchAndReplace : AnAction() {
                 editor.document.replaceString(
                     selectionStart,
                     selectionEnd,
-                    "TranslateManager.translateProxy.${translateInfo.key}().cn(\"${getShowCommentText(sourceText = translateInfo.value)}\")"
+                    "TranslateManager.translateProxy.${translateInfo.key}().${getDefaultLanguageDesc()}(\"${getShowCommentText(sourceText = translateInfo.value)}\")"
                 )
             }
         }
