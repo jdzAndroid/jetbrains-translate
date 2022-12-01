@@ -34,7 +34,8 @@ fun getBackJsonFileDir(event: AnActionEvent): String {
  */
 fun getExportDartClassPath(event: AnActionEvent): String {
     val rootFile = ProjectFileIndex.getInstance(event.project!!).getContentRootForFile(event.project!!.projectFile!!)!!
-    return rootFile.path.plus(File.separatorChar).plus("lib").plus(File.separatorChar).plus("language")
+    return rootFile.path.plus(File.separatorChar).plus("Resource").plus(File.separatorChar).plus("language")
+        .plus(File.separatorChar).plus("lib")
 }
 
 /**
