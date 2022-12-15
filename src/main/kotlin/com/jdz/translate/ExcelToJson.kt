@@ -6,7 +6,7 @@ import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.vfs.VirtualFile
-import org.apache.poi.xssf.usermodel.XSSFSheet
+import org.apache.poi.openxml4j.opc.OPCPackage
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.BufferedWriter
 import java.io.File
@@ -53,7 +53,8 @@ class ExcelToJson : AnAction() {
 
         logD("需要转换成json的excel文件是 excelFilePath=$excelFilePath")
         val xssfWorkbook: XSSFWorkbook?
-        xssfWorkbook = XSSFWorkbook(excelFilePath)
+        val pkg = OPCPackage.open(excelFilePath)
+        xssfWorkbook = XSSFWorkbook(pkg)
         val sheetCount = xssfWorkbook.numberOfSheets
         logD("excel sheet 大小等于 $sheetCount")
         if (sheetCount == 0) {
@@ -90,7 +91,7 @@ class ExcelToJson : AnAction() {
         val writeContentList = mutableListOf<String>()
         for (sheetIndex in 0 until sheetCount) {
             writeContentList.clear()
-            val xssfSheet: XSSFSheet = xssfWorkbook.getSheetAt(sheetIndex)
+            val xssfSheet = xssfWorkbook.getSheetAt(sheetIndex)
             for (rowIndex in 1 until Int.MAX_VALUE) {
                 paramsCount = 0
                 try {
@@ -176,7 +177,6 @@ class ExcelToJson : AnAction() {
                             .replace("\\", "").replace(comonDot, "\\\"")
                             .replace(comonN, "\\\n")
 
-
                         val lineList = columnValue.lines()
                         if (lineList.isNotEmpty()) {
                             columnValue = ""
@@ -207,6 +207,7 @@ class ExcelToJson : AnAction() {
             backupJsonFileWriter.flush()
             backupJsonFileWriter.close()
         }
+        pkg.close()
         logE("参数不一致的Key=$errorKey")
         ProjectFileIndex.getInstance(event.project!!).getContentRootForFile(event.project!!.projectFile!!)?.refresh(true, true)
     }

@@ -2,6 +2,7 @@ package com.jdz.translate
 
 import com.google.gson.Gson
 import com.intellij.ide.plugins.PluginManager
+import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.extensions.PluginId
@@ -21,11 +22,14 @@ import java.util.*
  *获取存储备份的JSON文件路径
  */
 fun getBackJsonFileDir(event: AnActionEvent): String {
-    val pluginId = PluginId.getId("org.jdz.translate.translate")
-    val plugin = PluginManager.getPlugin(pluginId)!!
-    val pluginInstallPath = plugin.path.absolutePath
     val rootFile =
         ProjectRootManager.getInstance(event.project!!).fileIndex.getContentRootForFile(event.project!!.projectFile!!)!!
+    if (isMacSystem()){
+        return rootFile.path.plus(File.separatorChar).plus("build/language/backup");
+    }
+    val pluginId = PluginId.getId("org.jdz.translate.translate")
+    val plugin = PluginManagerCore.getPlugin(pluginId)!!
+    val pluginInstallPath = plugin.pluginPath.toFile().absolutePath;
     return pluginInstallPath.plus(File.separatorChar).plus(rootFile.name)
 }
 
@@ -36,6 +40,15 @@ fun getExportDartClassPath(event: AnActionEvent): String {
     val rootFile = ProjectFileIndex.getInstance(event.project!!).getContentRootForFile(event.project!!.projectFile!!)!!
     return rootFile.path.plus(File.separatorChar).plus("Resource").plus(File.separatorChar).plus("language")
         .plus(File.separatorChar).plus("lib")
+}
+
+/**
+ *判断当前系统是否是MAC系统
+ */
+fun isMacSystem(): Boolean {
+    val osName = System.getProperty("os.name")
+    logD("osName=$osName");
+    return !osName.isNullOrEmpty() && osName.contains("Mac");
 }
 
 /**
@@ -79,8 +92,10 @@ fun getSearchSpecialSymbolsList(): List<String> {
  */
 fun findTranslateByKey(keyValue: String, event: AnActionEvent, exactSearch: Boolean): List<List<TranslateInfo>> {
     logD("开始通过key查找翻译信息")
-    val editor = event.getData(PlatformDataKeys.EDITOR)!!
-    val manager = FileDocumentManager.getInstance()
+    if (!hasCachedJsonFile(event)){
+        logD("没有检测到缓存的json文件，开始刷新缓存");
+        refreshCachedJsonFile(event);
+    }
     val backupJsonDirPath = getBackJsonFileDir(event)
     val backupJsonFile = File(backupJsonDirPath)
     val childFileList = backupJsonFile.listFiles()
@@ -262,8 +277,10 @@ fun findTranslateByKey(keyValue: String, event: AnActionEvent, exactSearch: Bool
  */
 fun findTranslateByZh(zhValue: String, event: AnActionEvent, exactSearch: Boolean): List<List<TranslateInfo>> {
     logD("开始通过中文查找翻译信息")
-    val editor = event.getData(PlatformDataKeys.EDITOR)!!
-    val manager = FileDocumentManager.getInstance()
+    if (!hasCachedJsonFile(event)){
+        logD("没有检测到缓存的json文件，开始刷新缓存");
+        refreshCachedJsonFile(event);
+    }
     val backupJsonDirPath = getBackJsonFileDir(event)
     val backupJsonFile = File(backupJsonDirPath)
     val childFileList = backupJsonFile.listFiles()
@@ -507,17 +524,17 @@ fun getDefaultLanguageDesc(): String {
 /**
  *检查本地是否缓存有JSON文件
  */
-fun hasCachedJsonFile(event:AnActionEvent): Boolean {
+fun hasCachedJsonFile(event: AnActionEvent): Boolean {
     val backJsonFilePath = getBackJsonFileDir(event)
     logD("开始查找本地是否存在缓存的JSON文件 backJsonFilePath=$backJsonFilePath")
     val backupJsonFile = File(backJsonFilePath)
-    return backupJsonFile.exists()&&backupJsonFile.isDirectory && !backupJsonFile.listFiles().isNullOrEmpty()
+    return backupJsonFile.exists() && backupJsonFile.isDirectory && !backupJsonFile.listFiles().isNullOrEmpty()
 }
 
 /**
  *重新刷新缓存的JSON文件
  */
-fun refreshCachedJsonFile(event:AnActionEvent) {
+fun refreshCachedJsonFile(event: AnActionEvent) {
     logD("检测到本地不存在缓存的JSON文件，开始从Dart文件中读取缓存文件内容")
     //从dart文件中匹配key的正则表达式
     var keyPlatter = Regex("ido_key_\\d{1,10}")
@@ -528,8 +545,8 @@ fun refreshCachedJsonFile(event:AnActionEvent) {
     //缓存JSON文件目录
     var cacheJsonDirPath = getBackJsonFileDir(event)
     clearDirChildFile(dirPath = cacheJsonDirPath)
-    val cacheDir=File(cacheJsonDirPath)
-    if (!cacheDir.exists()||!cacheDir.isDirectory){
+    val cacheDir = File(cacheJsonDirPath)
+    if (!cacheDir.exists() || !cacheDir.isDirectory) {
         cacheDir.mkdirs()
     }
     val languageDartDirFile = File(languageDartDirPath)
@@ -572,8 +589,8 @@ fun refreshCachedJsonFile(event:AnActionEvent) {
                 for (index in 0 until totalCount) {
                     val itemKey = keyList[index].value
                     var itemValue = valueList[index].value.trim()
-                    if (itemValue.endsWith(".")||itemValue.endsWith(";")){
-                        itemValue=itemValue.substring(0,itemValue.length-1)
+                    if (itemValue.endsWith(".") || itemValue.endsWith(";")) {
+                        itemValue = itemValue.substring(0, itemValue.length - 1)
                     }
                     bufferWriter.newLine()
                     if (index == totalCount - 1) {

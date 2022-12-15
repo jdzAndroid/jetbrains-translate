@@ -1,4 +1,5 @@
 <idea-plugin>
+    <idea-version since-build="213.*" until-build="223.*"/>
     <id>org.jdz.translate.translate</id>
     <name>Translate Tool</name>
     <vendor email="981023025@qq.com" url="https://blog.csdn.net/qq_21763489?type=blog">JDZ</vendor>
