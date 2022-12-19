@@ -19,10 +19,6 @@ import java.util.*
  */
 class ExcelToJson : AnAction() {
     override fun actionPerformed(event: AnActionEvent) {
-        val editor = event.getData(PlatformDataKeys.EDITOR)!!
-        val manager = FileDocumentManager.getInstance()
-        val virtualFile: VirtualFile = manager.getFile(editor.document)!!
-
         val backupJsonFilePath = getBackJsonFileDir(event)
         logD("JSON文件存储目录:$backupJsonFilePath")
         val backupJsonFile = File(backupJsonFilePath)
@@ -40,16 +36,7 @@ class ExcelToJson : AnAction() {
             }
         }
 
-        var excelFilePath = ""
-        val childFile = virtualFile.parent.children
-        for (itemChildFile in childFile) {
-            if (itemChildFile.name.lowercase(Locale.CHINA)
-                    .endsWith(".xls") || itemChildFile.name.lowercase(Locale.CHINA).endsWith(".xlsx")
-            ) {
-                excelFilePath = itemChildFile.path
-                break
-            }
-        }
+        var excelFilePath = getExcelFilePath(event)
 
         logD("需要转换成json的excel文件是 excelFilePath=$excelFilePath")
         val xssfWorkbook: XSSFWorkbook?
@@ -102,7 +89,12 @@ class ExcelToJson : AnAction() {
                                 val itemContent = writeContentList[contentIndex]
                                 val backJsonFileWriter = backupJsonFileMap[contentIndex + 1]!!
                                 backJsonFileWriter.newLine()
-                                backJsonFileWriter.write(itemContent)
+                                if (sheetIndex==sheetCount-1){
+                                    backJsonFileWriter.write(itemContent)
+                                }
+                                else{
+                                    backJsonFileWriter.write("$itemContent,")
+                                }
                             }
                         }
                         writeContentList.clear()
@@ -116,7 +108,12 @@ class ExcelToJson : AnAction() {
                                 val itemContent = writeContentList[contentIndex]
                                 val backupJsonWriter = backupJsonFileMap[contentIndex + 1]!!
                                 backupJsonWriter.newLine()
-                                backupJsonWriter.write("$itemContent")
+                                if (sheetIndex==sheetCount-1){
+                                    backupJsonWriter.write(itemContent)
+                                }
+                                else{
+                                    backupJsonWriter.write("$itemContent,")
+                                }
                             }
                         }
                         writeContentList.clear()

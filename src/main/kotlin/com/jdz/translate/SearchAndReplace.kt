@@ -26,19 +26,14 @@ import kotlin.math.roundToInt
 class SearchAndReplace : AnAction() {
     override fun actionPerformed(event: AnActionEvent) {
         val editor = event.getRequiredData(PlatformDataKeys.EDITOR)
-        if (editor == null) {
-            logD("请选中需要搜索的中文")
-            return
+        if (!hasCachedJsonFile(event)) {
+            refreshCachedJsonFile(event)
+        }
+        var selectedText = editor.selectionModel.selectedText
+        if (selectedText.isNullOrBlank()) {
+            replaceAllValueInOneFile(editor = editor, event = event)
         } else {
-            if (!hasCachedJsonFile(event)) {
-                refreshCachedJsonFile(event)
-            }
-            var selectedText = editor.selectionModel.selectedText
-            if (selectedText.isNullOrBlank()) {
-                replaceAllValueInOneFile(editor = editor, event = event)
-            } else {
-                replaceSingleValueInOneFile(selectedText = selectedText, editor = editor, event = event)
-            }
+            replaceSingleValueInOneFile(selectedText = selectedText, editor = editor, event = event)
         }
     }
 
@@ -78,7 +73,7 @@ class SearchAndReplace : AnAction() {
                     editor.document.replaceString(
                         selectionStart,
                         selectionEnd + 1,
-                        "TranslateManager.translateProxy.${
+                        "$mManagerDartClassName().${
                             result.first().first().key
                         }().${getDefaultLanguageDesc()}(\"${getShowCommentText(sourceText = itemMathResult.value)}\")"
                     )
@@ -140,7 +135,11 @@ class SearchAndReplace : AnAction() {
                 editor.document.replaceString(
                     selectionStart,
                     selectionEnd,
-                    "TranslateManager.translateProxy.${translateInfo.key}().${getDefaultLanguageDesc()}(\"${getShowCommentText(sourceText = translateInfo.value)}\")"
+                    "$mManagerDartClassName().${translateInfo.key}().${getDefaultLanguageDesc()}(\"${
+                        getShowCommentText(
+                            sourceText = translateInfo.value
+                        )
+                    }\")"
                 )
             }
         }

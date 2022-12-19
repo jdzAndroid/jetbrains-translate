@@ -1,6 +1,7 @@
 package com.jdz.translate
 
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.intellij.ide.plugins.PluginManager
 import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -16,7 +17,18 @@ import java.io.BufferedWriter
 import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
+import java.nio.charset.Charset
 import java.util.*
+
+/**
+ *翻译配置文件名称
+ */
+const val Config_File_Name = "translate_config.json"
+
+/**
+ *世界时钟key迷人前缀
+ */
+const val World_Key_Prefix="world_city_"
 
 /**
  *获取存储备份的JSON文件路径
@@ -24,7 +36,7 @@ import java.util.*
 fun getBackJsonFileDir(event: AnActionEvent): String {
     val rootFile =
         ProjectRootManager.getInstance(event.project!!).fileIndex.getContentRootForFile(event.project!!.projectFile!!)!!
-    if (isMacSystem()){
+    if (isMacSystem()) {
         return rootFile.path.plus(File.separatorChar).plus("build/language/backup");
     }
     val pluginId = PluginId.getId("org.jdz.translate.translate")
@@ -34,13 +46,48 @@ fun getBackJsonFileDir(event: AnActionEvent): String {
 }
 
 /**
+ *获取项目根目录
+ */
+fun getRootPath(event: AnActionEvent): String {
+    return ProjectFileIndex.getInstance(event.project!!).getContentRootForFile(event.project!!.projectFile!!)!!.path
+}
+
+/**
  *获取excel转成dart文件存储路径
  */
-fun getExportDartClassPath(event: AnActionEvent): String {
-    val rootFile = ProjectFileIndex.getInstance(event.project!!).getContentRootForFile(event.project!!.projectFile!!)!!
-    return rootFile.path.plus(File.separatorChar).plus("Resource").plus(File.separatorChar).plus("language")
-        .plus(File.separatorChar).plus("lib")
+fun getExportFilePath(event: AnActionEvent): String {
+    val rootPath = getRootPath(event)
+    val file = File(rootPath.plus(File.separatorChar).plus(Config_File_Name))
+    var dartClassPath = Gson().fromJson<Map<String, String>>(file.readText(charset = Charsets.UTF_8),
+        object : TypeToken<Map<String, String>>() {}.type)["out_put_dir"]!!.trim()
+    if (dartClassPath.startsWith(File.separatorChar))dartClassPath=dartClassPath.substring(1)
+    return getRootPath(event).plus(File.separatorChar).plus(dartClassPath)
 }
+
+/**
+ *获取excel文件存储路径
+ */
+fun getExcelFilePath(event: AnActionEvent): String {
+    val rootPath = getRootPath(event)
+    val file = File(rootPath.plus(File.separatorChar).plus(Config_File_Name))
+    var excelPath = Gson().fromJson<Map<String, String>>(file.readText(charset = Charsets.UTF_8),
+        object : TypeToken<Map<String, String>>() {}.type)["excel_path"]!!.trim()
+    if (excelPath.startsWith(File.separatorChar))excelPath=excelPath.substring(1)
+    return getRootPath(event).plus(File.separatorChar).plus(excelPath)
+}
+
+/**
+ *获取世界时钟文件存储路径
+ */
+fun getWorldCityPath(event: AnActionEvent): String {
+    val rootPath = getRootPath(event)
+    val file = File(rootPath.plus(File.separatorChar).plus(Config_File_Name))
+    var excelPath = Gson().fromJson<Map<String, String>>(file.readText(charset = Charsets.UTF_8),
+        object : TypeToken<Map<String, String>>() {}.type)["world_cities"]!!.trim()
+    if (excelPath.startsWith(File.separatorChar))excelPath=excelPath.substring(1)
+    return getRootPath(event).plus(File.separatorChar).plus(excelPath)
+}
+
 
 /**
  *判断当前系统是否是MAC系统
@@ -92,7 +139,7 @@ fun getSearchSpecialSymbolsList(): List<String> {
  */
 fun findTranslateByKey(keyValue: String, event: AnActionEvent, exactSearch: Boolean): List<List<TranslateInfo>> {
     logD("开始通过key查找翻译信息")
-    if (!hasCachedJsonFile(event)){
+    if (!hasCachedJsonFile(event)) {
         logD("没有检测到缓存的json文件，开始刷新缓存");
         refreshCachedJsonFile(event);
     }
@@ -210,62 +257,6 @@ fun findTranslateByKey(keyValue: String, event: AnActionEvent, exactSearch: Bool
             )
         }
     }
-
-//        for (itemChildFile in childFileList) {
-//            if (itemChildFile == zhFile || itemChildFile == enFile) continue
-//            val fileName = itemChildFile.name.trim().lowercase(Locale.CHINA)
-//            if (!fileName.endsWith(".json")) continue
-//            val languageCode = fileName.substring(
-//                fileName.lastIndexOf("_") + 1,
-//                fileName.lastIndexOf(".")
-//            )
-//            lineNumber = 0
-//            val itemBufferReader = BufferedReader(FileReader(itemChildFile))
-//            hasFound = false
-//            while (true) {
-//                line = itemBufferReader.readLine()
-//                if (line.isNullOrEmpty()) {
-//                    break
-//                }
-//                if (lineNumber == zhTranslateInfo.lineNumber) {
-//                    line = line.trim().substring(0, line.length - 1)
-//                    val splitValue = line.split("\":\"")
-//                    if (splitValue.size == 2) {
-//                        var key = splitValue[0].trim()
-//                        var value = splitValue[1].trim()
-//                        key = key.substring(1, key.length)
-//                        value = value.substring(0, value.length - 1)
-//                        logD("找到的键值对信息 key=$key,value=$value")
-//                        result.add(
-//                            TranslateInfo(
-//                                key = key,
-//                                languageCode = languageCode,
-//                                value = value,
-//                                lineNumber = lineNumber
-//                            )
-//                        )
-//                    } else {
-//                        result.add(
-//                            TranslateInfo(
-//                                key = zhTranslateInfo.key,
-//                                languageCode = languageCode, value = notFoundDefaultValue, lineNumber = lineNumber
-//                            )
-//                        )
-//                    }
-//                    hasFound = true
-//                    break
-//                }
-//                lineNumber++
-//            }
-//            if (!hasFound) {
-//                result.add(
-//                    TranslateInfo(
-//                        key = zhTranslateInfo.key,
-//                        languageCode = languageCode, value = notFoundDefaultValue, lineNumber = lineNumber
-//                    )
-//                )
-//            }
-//        }
     return result
 }
 
@@ -277,7 +268,7 @@ fun findTranslateByKey(keyValue: String, event: AnActionEvent, exactSearch: Bool
  */
 fun findTranslateByZh(zhValue: String, event: AnActionEvent, exactSearch: Boolean): List<List<TranslateInfo>> {
     logD("开始通过中文查找翻译信息")
-    if (!hasCachedJsonFile(event)){
+    if (!hasCachedJsonFile(event)) {
         logD("没有检测到缓存的json文件，开始刷新缓存");
         refreshCachedJsonFile(event);
     }
@@ -431,70 +422,6 @@ fun findTranslateByZh(zhValue: String, event: AnActionEvent, exactSearch: Boolea
         logD("enTranslateInfo=${Gson().toJson(enTranslateInfoList)}")
         result.add(enTranslateInfoList)
     }
-
-
-//        for (itemChildFile in childFileList) {
-//            if (itemChildFile == zhFile || itemChildFile == enFile) continue
-//            val fileName = itemChildFile.name.trim().lowercase(Locale.CHINA)
-//            if (!fileName.endsWith(".json")) continue
-//            val languageCode = fileName.substring(
-//                fileName.lastIndexOf("_") + 1,
-//                fileName.lastIndexOf(".")
-//            )
-//            val itemTranslateInfo = mutableListOf<TranslateInfo>()
-//            lineNumber = 0
-//            hasFineLineNumberIndex = 0
-//            val itemBufferReader = BufferedReader(FileReader(itemChildFile))
-//            while (true) {
-//                if (hasFineLineNumberIndex >= lineNumberList.size) {
-//                    break
-//                }
-//                line = itemBufferReader.readLine()
-//                if (line.isNullOrEmpty()) {
-//                    break
-//                }
-//                if (lineNumber == lineNumberList[hasFineLineNumberIndex]) {
-//                    line = line.trim().substring(0, line.length - 1)
-//                    val splitValue = line.split("\":\"")
-//                    if (splitValue.size == 2) {
-//                        var key = splitValue[0].trim()
-//                        var value = splitValue[1].trim()
-//                        key = key.substring(1, key.length)
-//                        value = value.substring(0, value.length - 1)
-//                        logD("找到的键值对信息 key=$key,value=$value")
-//                        itemTranslateInfo.add(
-//                            TranslateInfo(
-//                                key = key,
-//                                languageCode = languageCode,
-//                                value = value,
-//                                lineNumber = lineNumber
-//                            )
-//                        )
-//                    } else {
-//                        itemTranslateInfo.add(
-//                            TranslateInfo(
-//                                key = zhTranslateInfoList[hasFineLineNumberIndex].key,
-//                                languageCode = languageCode, value = notFoundDefaultValue, lineNumber = lineNumber
-//                            )
-//                        )
-//                    }
-//                    hasFineLineNumberIndex++
-//                }
-//                lineNumber++
-//            }
-//            while (hasFineLineNumberIndex < lineNumberList.size) {
-//                itemTranslateInfo.add(
-//                    TranslateInfo(
-//                        key = zhTranslateInfoList[hasFineLineNumberIndex].key,
-//                        languageCode = languageCode,
-//                        value = notFoundDefaultValue,
-//                        lineNumber = lineNumberList[hasFineLineNumberIndex]
-//                    )
-//                )
-//                hasFineLineNumberIndex++
-//            }
-//            result.add(itemTranslateInfo)
-//        }
     return result
 }
 
@@ -541,7 +468,7 @@ fun refreshCachedJsonFile(event: AnActionEvent) {
     //从dart文件中匹配value的正则表达式
     var valuePlatter = Regex("(\\\".*\\\"[.|;|\\n])")
     //翻译dart文件存放目录
-    var languageDartDirPath = getExportDartClassPath(event)
+    var languageDartDirPath = getExportFilePath(event)
     //缓存JSON文件目录
     var cacheJsonDirPath = getBackJsonFileDir(event)
     clearDirChildFile(dirPath = cacheJsonDirPath)
@@ -575,7 +502,6 @@ fun refreshCachedJsonFile(event: AnActionEvent) {
         if (!fileContent.isNullOrEmpty()) {
             val keyList = keyPlatter.findAll(fileContent).toList()
             val valueList = valuePlatter.findAll(fileContent).toList()
-            logD("local=$local,itemChildFilePath=${itemChildFile.absolutePath},keySize=${keyList.count()},valueSize=${valueList.count()}")
             if (keyList.count() == valueList.count()) {
                 val outFilePath = cacheJsonDirPath.plus(File.separatorChar).plus(getJsonFileName(languageCode = local))
                 val outFile = File(outFilePath)

@@ -29,8 +29,11 @@ class GenerateDartFromJson : AnAction() {
     private var mDefaultDartFileName = ""
 
     override fun actionPerformed(event: AnActionEvent) {
+        if (!hasCachedJsonFile(event)) {
+            refreshCachedJsonFile(event)
+        }
         val backupJsonFileDirPath = getBackJsonFileDir(event)
-        val dartFileDirPath = getExportDartClassPath(event)
+        val dartFileDirPath = getExportFilePath(event)
         logD("开始将json文件转换成dart文件 backupJsonFileDirPath=$backupJsonFileDirPath,dartFileDirPath=$dartFileDirPath")
         val dartDirFile = File(dartFileDirPath)
         if (!dartDirFile.exists()) {
@@ -40,29 +43,47 @@ class GenerateDartFromJson : AnAction() {
         val jsonFilePathList = mutableListOf<String>()
         logD("开始查找当前目录下面的所有JSON格式的文件")
         collectAllJsonFile(directoryPath = backupJsonFileDirPath, jsonFilePathList = jsonFilePathList)
-        val jsonFileDir=File(backupJsonFileDirPath)
-        if (!jsonFileDir.exists()||!jsonFileDir.isDirectory){
+        val jsonFileDir = File(backupJsonFileDirPath)
+        if (!jsonFileDir.exists() || !jsonFileDir.isDirectory) {
             jsonFileDir.mkdirs()
         }
-        if (jsonFilePathList.isEmpty()) {
-            logE("在该目录下面没有找到任何JSON文件")
+        var worldCityFilePath = getWorldCityPath(event)
+        var worldCityFile = File(worldCityFilePath)
+
+
+        if (jsonFilePathList.isEmpty() && !worldCityFile.exists()) {
+            logE("$backupJsonFileDirPath 和 $worldCityFilePath 目录下面没有找人任何json文件")
             return
         }
-        val jsonInfoList = collectAllKeyValueInfo(jsonFilePathList)
-        if (jsonInfoList.isEmpty()) {
-            logE("没有查找到任何的JSON文件的健值对信息，或者JSON文件内容为空")
-            return
+        val worldCityJsonInfo = collectWorldCityKeyValueInfo(worldCityFilePath)
+        val excelJsonInfoList = collectAllKeyValueInfo(jsonFilePathList)
+        if (excelJsonInfoList.isEmpty()) {
+            logD("没有查找到任何的JSON文件的健值对信息，或者JSON文件内容为空")
         }
-        val methodInfoList = collectMethodInfo(jsonInfoList)
-        if (methodInfoList.isNotEmpty()) {
-            generateBaseDartClass(dartFileDirPath, methodInfoList)
-            val dartClassInfoList = generateJsonDartClass(dartFileDirPath, jsonInfoList, methodInfoList)
-            generateTranslateProxyClass(dartFileDirPath, methodInfoList)
-            generateTranslateManagerDartClass(rootPath = dartFileDirPath, dartClassInfoList = dartClassInfoList)
+        val excelMethodInfoList = collectMethodInfo(excelJsonInfoList)
+        val worldMethodInfoList = collectMethodInfo(mutableListOf(worldCityJsonInfo))
+        if (worldMethodInfoList.isNotEmpty()) {
+            excelMethodInfoList.addAll(worldMethodInfoList)
+            excelJsonInfoList.forEach {
+                it.valueInfoMap.putAll(worldCityJsonInfo.valueInfoMap)
+            }
+        }
+        if (excelMethodInfoList.isNotEmpty()) {
+            generateBaseDartClass(dartFileDirPath, excelMethodInfoList)
+            val dartClassInfoList = generateJsonDartClass(dartFileDirPath, excelJsonInfoList, excelMethodInfoList)
+            generateTranslateProxyClass(dartFileDirPath, excelMethodInfoList)
+            generateTranslateManagerDartClass(
+                rootPath = dartFileDirPath,
+                dartClassInfoList = dartClassInfoList,
+                worldCityMethodInfoList = worldMethodInfoList
+            )
             generateStringExtensionClass(dartClassInfoList)
             generateDefaultLanguageLocalization(dartClassInfoList)
+            ProjectFileIndex.getInstance(event.project!!).getContentRootForFile(event.project!!.projectFile!!)
+                ?.refresh(true, true)
+        } else {
+            logE("没有解析到任何可用信息")
         }
-        ProjectFileIndex.getInstance(event.project!!).getContentRootForFile(event.project!!.projectFile!!)?.refresh(true, true)
     }
 
     /**
@@ -99,7 +120,11 @@ class GenerateDartFromJson : AnAction() {
     /**
      *生成Dart Translate Manager类
      */
-    private fun generateTranslateManagerDartClass(rootPath: String, dartClassInfoList: List<DartClassInfo>) {
+    private fun generateTranslateManagerDartClass(
+        rootPath: String,
+        dartClassInfoList: List<DartClassInfo>,
+        worldCityMethodInfoList: List<MethodInfo>
+    ) {
         val dartClassFilePath = if (rootPath.endsWith(File.separator)) rootPath.plus(mManagerDartFileName)
         else rootPath.plus(File.separator).plus(mManagerDartFileName)
         val managerFile = File(dartClassFilePath)
@@ -119,22 +144,33 @@ class GenerateDartFromJson : AnAction() {
         }
         bufferedWriter.newLine()
         bufferedWriter.newLine()
-        bufferedWriter.write("class $mManagerDartClassName {")
+        bufferedWriter.write("class $mManagerDartClassName extends $mBaseDartClassName with $mProxyDartClassName {")
         bufferedWriter.newLine()
         bufferedWriter.write("  static const Map<String, String> emptyMap = {};")
         bufferedWriter.newLine()
-        bufferedWriter.newLine()
-        bufferedWriter.write("  static $mProxyDartClassName translateProxy = $mProxyDartClassName(")
-        bufferedWriter.newLine()
-        bufferedWriter.write("      localTranslate: $mDefaultDartClassName(), serverValueMap: emptyMap);")
+        bufferedWriter.write("  static final TranslateManager _manager = TranslateManager._newInstance();")
         bufferedWriter.newLine()
         bufferedWriter.newLine()
-        bufferedWriter.write("  static void localeChanged({required String languageCode,")
+        bufferedWriter.write("  static TranslateProxy get translateProxy => _manager;")
+        bufferedWriter.newLine()
+        bufferedWriter.newLine()
+        bufferedWriter.write("  TranslateManager._newInstance();")
+        bufferedWriter.newLine()
+        bufferedWriter.newLine()
+        bufferedWriter.write("  factory TranslateManager() {")
+        bufferedWriter.newLine()
+        bufferedWriter.write("    return _manager;")
+        bufferedWriter.newLine()
+        bufferedWriter.write("  }")
+        bufferedWriter.newLine()
+        bufferedWriter.newLine()
+        bufferedWriter.write("  void localeChanged(")
+        bufferedWriter.newLine()
+        bufferedWriter.write("      {required String languageCode,")
         bufferedWriter.newLine()
         bufferedWriter.write("      Map<String, String> serverValueMap = emptyMap}) {")
         bufferedWriter.newLine()
-        bufferedWriter.write("      $mBaseDartClassName localTranslate;")
-        bufferedWriter.newLine()
+        bufferedWriter.write("    BaseTranslate localTranslate;")
         bufferedWriter.write("    switch (languageCode.toLowerCase()) {")
         var defaultTranslate = dartClassInfoList.first()
         for (itemDartClassInfo in dartClassInfoList) {
@@ -164,6 +200,38 @@ class GenerateDartFromJson : AnAction() {
         bufferedWriter.newLine()
         bufferedWriter.write("  }")
         bufferedWriter.newLine()
+        if (worldCityMethodInfoList.isNotEmpty()) {
+            bufferedWriter.newLine()
+            bufferedWriter.write("  String getWorldValue(String worldKey) {")
+            bufferedWriter.newLine()
+            bufferedWriter.write("    String result = \"\";")
+            bufferedWriter.newLine()
+            bufferedWriter.write("    worldKey = worldKey.trim();")
+            bufferedWriter.newLine()
+            bufferedWriter.write("    switch (worldKey) {")
+            bufferedWriter.newLine()
+            for (methodInfo in worldCityMethodInfoList) {
+                bufferedWriter.write("      case \"${methodInfo.key}\":")
+                bufferedWriter.newLine()
+                bufferedWriter.write("      case \"${methodInfo.key.replace(World_Key_Prefix, "")}\":")
+                bufferedWriter.newLine()
+                bufferedWriter.write("        result = ${methodInfo.key}();")
+                bufferedWriter.newLine()
+                bufferedWriter.write("        break;")
+                bufferedWriter.newLine()
+            }
+            bufferedWriter.write("      default:")
+            bufferedWriter.newLine()
+            bufferedWriter.write("        result = \"\";")
+            bufferedWriter.newLine()
+            bufferedWriter.write("        break;")
+            bufferedWriter.newLine()
+            bufferedWriter.write("    }")
+            bufferedWriter.newLine()
+            bufferedWriter.write("    return result;")
+            bufferedWriter.newLine()
+            bufferedWriter.write("  }")
+        }
         bufferedWriter.write("}")
         bufferedWriter.newLine()
         bufferedWriter.flush()
@@ -186,27 +254,16 @@ class GenerateDartFromJson : AnAction() {
         val bufferedWriter = BufferedWriter(FileWriter(dartClassFile))
         bufferedWriter.write(baseDartPackageImport)
         bufferedWriter.newLine()
+        bufferedWriter.write("import 'language_zh.dart'")
         bufferedWriter.newLine()
-        bufferedWriter.write("class $mProxyDartClassName extends $mBaseDartClassName {")
+        bufferedWriter.newLine()
+        bufferedWriter.write("mixin $mProxyDartClassName on $mBaseDartClassName {")
         val serverValueMap = "_serverValueMap"
         val localTranslate = "_localTranslate"
         bufferedWriter.newLine()
-        bufferedWriter.write("  late $mBaseDartClassName $localTranslate;")
+        bufferedWriter.write("  $mBaseDartClassName $localTranslate=LanguageZhTranslate();")
         bufferedWriter.newLine()
-        bufferedWriter.write("  late Map<String, String> $serverValueMap;")
-        bufferedWriter.newLine()
-        bufferedWriter.newLine()
-        bufferedWriter.write("  $mProxyDartClassName(")
-        bufferedWriter.newLine()
-        bufferedWriter.write("      {required $mBaseDartClassName localTranslate,")
-        bufferedWriter.newLine()
-        bufferedWriter.write("      required Map<String, String> serverValueMap}) {")
-        bufferedWriter.newLine()
-        bufferedWriter.write("    $localTranslate = localTranslate;")
-        bufferedWriter.newLine()
-        bufferedWriter.write("    $serverValueMap = serverValueMap;")
-        bufferedWriter.newLine()
-        bufferedWriter.write("  }")
+        bufferedWriter.write("  Map<String, String> $serverValueMap={};")
         bufferedWriter.newLine()
         bufferedWriter.newLine()
         bufferedWriter.write("  void updateSource(")
@@ -294,6 +351,7 @@ class GenerateDartFromJson : AnAction() {
             try {
                 classInfoList.add(generateJsonDartClass(dartFileDirPath, itemJsonInfo, methodInfoList))
             } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
         return classInfoList
@@ -328,8 +386,7 @@ class GenerateDartFromJson : AnAction() {
         bufferedWriter.newLine()
         bufferedWriter.newLine()
         bufferedWriter.write("class $dartClassName extends $mBaseDartClassName {")
-        for (element in methodInfoList) {
-            val itemMethodInfo = element
+        for (itemMethodInfo in methodInfoList) {
             bufferedWriter.newLine()
             bufferedWriter.write("  @override")
             bufferedWriter.newLine()
@@ -417,7 +474,7 @@ class GenerateDartFromJson : AnAction() {
      * @param fileDirectoryPath 文件目录路径
      * @param methodInfoList 方法信息
      */
-    private fun generateBaseDartClass(fileDirectoryPath: String, methodInfoList: List<MethodInfo>) {
+    private fun generateBaseDartClass(fileDirectoryPath: String, excelMethodInfoList: List<MethodInfo>) {
         val file =
             if (fileDirectoryPath.endsWith(File.separator)) File(fileDirectoryPath.plus(mBaseDartFileName)) else File(
                 fileDirectoryPath.plus(File.separator).plus(mBaseDartFileName)
@@ -426,7 +483,7 @@ class GenerateDartFromJson : AnAction() {
         file.createNewFile()
         val bufferedWriter = BufferedWriter(FileWriter(file))
         bufferedWriter.write("abstract class $mBaseDartClassName {")
-        for (itemMethodInfo in methodInfoList) {
+        for (itemMethodInfo in excelMethodInfoList) {
             bufferedWriter.newLine()
             if (itemMethodInfo.argList.isEmpty()) {
                 bufferedWriter.write("  String ${itemMethodInfo.methodName}();")
@@ -457,7 +514,8 @@ class GenerateDartFromJson : AnAction() {
     /**
      *搜集方法信息
      */
-    private fun collectMethodInfo(jsonInfoList: List<JsonInfo>): List<MethodInfo> {
+    private fun collectMethodInfo(jsonInfoList: List<JsonInfo>): MutableList<MethodInfo> {
+        if (jsonInfoList.isEmpty()) return mutableListOf()
         val methodInfoList = mutableListOf<MethodInfo>()
         val firstJsonInfo = jsonInfoList.first()
         for (firstValueInfo in firstJsonInfo.valueInfoMap) {
@@ -482,9 +540,20 @@ class GenerateDartFromJson : AnAction() {
     }
 
     /**
+     *统计世界时钟翻译键值对信息
+     */
+    private fun collectWorldCityKeyValueInfo(worldCityFilePath: String): JsonInfo {
+        logD("开始搜索时间时钟JSON文件的健值对信息以及参数列表")
+        //存储每个json文件中的键值对
+        val valueInfoMap = mutableMapOf<String, ValueInfo>()
+        getWorldCityKeyValueInfoFromJson(worldCityFilePath, valueInfoMap)
+        return JsonInfo(filePath = worldCityFilePath, valueInfoMap = valueInfoMap)
+    }
+
+    /**
      *统计所有JSON文件的健值对信息
      */
-    private fun collectAllKeyValueInfo(jsonFilePathList: List<String>): List<JsonInfo> {
+    private fun collectAllKeyValueInfo(jsonFilePathList: List<String>): MutableList<JsonInfo> {
         logD("开始搜索JSON文件的健值对信息以及参数列表")
         //存储每个json文件中的键值对
         val jsonValueList = mutableListOf<JsonInfo>()
@@ -496,6 +565,27 @@ class GenerateDartFromJson : AnAction() {
             }
         }
         return jsonValueList
+    }
+
+    /**
+     *获取世界时钟json文件中的健值对信息
+     */
+    private fun getWorldCityKeyValueInfoFromJson(jsonFilePath: String, valueInfoMap: MutableMap<String, ValueInfo>) {
+        try {
+            val jsonContent = File(jsonFilePath).readText(Charsets.UTF_8)
+            val jsonMap =
+                Gson().fromJson<List<WorldCityBean>>(jsonContent, object : TypeToken<List<WorldCityBean>>() {}.type)
+            for (itemMapEntry in jsonMap) {
+                val key = World_Key_Prefix.plus(itemMapEntry.nameKey)
+                val value = itemMapEntry.name
+                if (key.isNullOrEmpty() || value.isNullOrEmpty()) continue
+                if (!valueInfoMap.containsKey(key)) {
+                    valueInfoMap[key] = ValueInfo(key = key, value = value, argList = mutableListOf())
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     /**
@@ -541,7 +631,6 @@ class GenerateDartFromJson : AnAction() {
         if (!fileList.isNullOrEmpty()) {
             for (itemFile in fileList) {
                 if (itemFile.isDirectory) {
-//                    collectAllJsonFile(itemFile.absolutePath, jsonFilePathList)
                 } else {
                     if (isJsonFile(itemFile)) {
                         logD("发现了一个JSON文件 path=${itemFile}")
@@ -573,7 +662,7 @@ class GenerateDartFromJson : AnAction() {
         bufferedWriter.newLine()
         bufferedWriter.write("class $mDefaultLocalizationClassName extends LocalizationsDelegate<$mBaseDartClassName> {")
         bufferedWriter.newLine()
-        bufferedWriter.write("static LocalizationsDelegate<BaseTranslate> delegate = DefaultLocalizations();")
+        bufferedWriter.write("static LocalizationsDelegate<$mBaseDartClassName> delegate = DefaultLocalizations();")
         bufferedWriter.newLine()
         bufferedWriter.newLine()
         bufferedWriter.write("  static List<Locale> get supportedLocales {")
@@ -596,7 +685,7 @@ class GenerateDartFromJson : AnAction() {
         bufferedWriter.newLine()
         bufferedWriter.write("  @override")
         bufferedWriter.newLine()
-        bufferedWriter.write("  Future<BaseTranslate> load(Locale locale) {")
+        bufferedWriter.write("  Future<$mBaseDartClassName> load(Locale locale) {")
         bufferedWriter.newLine()
         bufferedWriter.write("    TranslateManager.localeChanged(languageCode: locale.languageCode);")
         bufferedWriter.newLine()
@@ -607,7 +696,7 @@ class GenerateDartFromJson : AnAction() {
         bufferedWriter.newLine()
         bufferedWriter.write("  @override")
         bufferedWriter.newLine()
-        bufferedWriter.write("  bool shouldReload(covariant LocalizationsDelegate<BaseTranslate> old) {")
+        bufferedWriter.write("  bool shouldReload(covariant LocalizationsDelegate<$mBaseDartClassName> old) {")
         bufferedWriter.newLine()
         bufferedWriter.write("    return false;")
         bufferedWriter.newLine()
@@ -645,7 +734,7 @@ class GenerateDartFromJson : AnAction() {
 
     data class ValueInfo(val key: String, val value: String, val argList: List<String>)
 
-    data class MethodInfo(val key: String, val methodName: String, val value: String, var argList: List<String>)
+    data class MethodInfo(var key: String, var methodName: String, val value: String, var argList: List<String>)
 
     /**
      *@param filePath Dart文件所在路径
@@ -654,4 +743,19 @@ class GenerateDartFromJson : AnAction() {
      * @param className 类名
      */
     data class DartClassInfo(val filePath: String, val local: String, val fileName: String, val className: String)
+
+    /**
+     *世界时钟信息
+     */
+    data class WorldCityBean(
+        val id: Int,
+        val name: String? = null,
+        val country: String? = null,
+        val abbreviation: String? = null,
+        val latitude: String? = null,
+        val longitude: String? = null,
+        val timeZoneName: String? = null,
+        val nameKey: String? = null,
+        val countryKey: String? = null
+    )
 }
