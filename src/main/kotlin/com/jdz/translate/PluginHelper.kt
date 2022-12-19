@@ -2,22 +2,16 @@ package com.jdz.translate
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.intellij.ide.plugins.PluginManager
 import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.extensions.PluginId
-import com.intellij.openapi.fileEditor.FileDocumentManager
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.roots.ProjectRootManager
-import com.intellij.openapi.vfs.VirtualFile
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
-import java.nio.charset.Charset
 import java.util.*
 
 /**
@@ -37,11 +31,11 @@ fun getBackJsonFileDir(event: AnActionEvent): String {
     val rootFile =
         ProjectRootManager.getInstance(event.project!!).fileIndex.getContentRootForFile(event.project!!.projectFile!!)!!
     if (isMacSystem()) {
-        return rootFile.path.plus(File.separatorChar).plus("build/language/backup");
+        return rootFile.path.plus(File.separatorChar).plus("build/language/backup")
     }
     val pluginId = PluginId.getId("org.jdz.translate.translate")
     val plugin = PluginManagerCore.getPlugin(pluginId)!!
-    val pluginInstallPath = plugin.pluginPath.toFile().absolutePath;
+    val pluginInstallPath = plugin.pluginPath.toFile().absolutePath
     return pluginInstallPath.plus(File.separatorChar).plus(rootFile.name)
 }
 
@@ -94,8 +88,8 @@ fun getWorldCityPath(event: AnActionEvent): String {
  */
 fun isMacSystem(): Boolean {
     val osName = System.getProperty("os.name")
-    logD("osName=$osName");
-    return !osName.isNullOrEmpty() && osName.contains("Mac");
+    logD("osName=$osName")
+    return !osName.isNullOrEmpty() && osName.contains("Mac")
 }
 
 /**
@@ -140,8 +134,8 @@ fun getSearchSpecialSymbolsList(): List<String> {
 fun findTranslateByKey(keyValue: String, event: AnActionEvent, exactSearch: Boolean): List<List<TranslateInfo>> {
     logD("开始通过key查找翻译信息")
     if (!hasCachedJsonFile(event)) {
-        logD("没有检测到缓存的json文件，开始刷新缓存");
-        refreshCachedJsonFile(event);
+        logD("没有检测到缓存的json文件，开始刷新缓存")
+        refreshCachedJsonFile(event)
     }
     val backupJsonDirPath = getBackJsonFileDir(event)
     val backupJsonFile = File(backupJsonDirPath)
@@ -269,8 +263,8 @@ fun findTranslateByKey(keyValue: String, event: AnActionEvent, exactSearch: Bool
 fun findTranslateByZh(zhValue: String, event: AnActionEvent, exactSearch: Boolean): List<List<TranslateInfo>> {
     logD("开始通过中文查找翻译信息")
     if (!hasCachedJsonFile(event)) {
-        logD("没有检测到缓存的json文件，开始刷新缓存");
-        refreshCachedJsonFile(event);
+        logD("没有检测到缓存的json文件，开始刷新缓存")
+        refreshCachedJsonFile(event)
     }
     val backupJsonDirPath = getBackJsonFileDir(event)
     val backupJsonFile = File(backupJsonDirPath)
@@ -464,13 +458,13 @@ fun hasCachedJsonFile(event: AnActionEvent): Boolean {
 fun refreshCachedJsonFile(event: AnActionEvent) {
     logD("检测到本地不存在缓存的JSON文件，开始从Dart文件中读取缓存文件内容")
     //从dart文件中匹配key的正则表达式
-    var keyPlatter = Regex("ido_key_\\d{1,10}")
+    val keyPlatter = Regex("ido_key_\\d{1,10}")
     //从dart文件中匹配value的正则表达式
-    var valuePlatter = Regex("(\\\".*\\\"[.|;|\\n])")
+    val valuePlatter = Regex("(\\\".*\\\"[.|;|\\n])")
     //翻译dart文件存放目录
-    var languageDartDirPath = getExportFilePath(event)
+    val languageDartDirPath = getExportFilePath(event)
     //缓存JSON文件目录
-    var cacheJsonDirPath = getBackJsonFileDir(event)
+    val cacheJsonDirPath = getBackJsonFileDir(event)
     clearDirChildFile(dirPath = cacheJsonDirPath)
     val cacheDir = File(cacheJsonDirPath)
     if (!cacheDir.exists() || !cacheDir.isDirectory) {
@@ -495,11 +489,11 @@ fun refreshCachedJsonFile(event: AnActionEvent) {
         ).lowercase(
             Locale.CHINA
         )
-        if (local.isNullOrEmpty()) continue
+        if (local.isEmpty()) continue
         val bufferReader = BufferedReader(FileReader(itemChildFile))
         val fileContent = bufferReader.readText()
         bufferReader.close()
-        if (!fileContent.isNullOrEmpty()) {
+        if (fileContent.isNotEmpty()) {
             val keyList = keyPlatter.findAll(fileContent).toList()
             val valueList = valuePlatter.findAll(fileContent).toList()
             if (keyList.count() == valueList.count()) {

@@ -29,12 +29,11 @@ class AutoAddLanguageDesc : AnAction() {
      */
     private fun showLanguageDescDialog(e: AnActionEvent) {
         val editor = e.getRequiredData(PlatformDataKeys.EDITOR)
-        var selectedText = editor.selectionModel.selectedText
+        val selectedText = editor.selectionModel.selectedText
         if (selectedText.isNullOrBlank()) {
             appendAllLanguageDesc(e = e, editor = editor)
         } else {
             appendSpecialLanguageDesc(
-                languageCode = getDefaultLanguageDesc(),
                 selectedText = selectedText,
                 event = e,
                 editor = editor
@@ -50,12 +49,12 @@ class AutoAddLanguageDesc : AnAction() {
         //全局匹配翻译
         val platter = Regex(".*.\\(\\)")
         val allContent = editor.document.text
-        if (allContent.isNullOrEmpty()) {
+        if (allContent.isEmpty()) {
             logD("文档内容为空")
             return
         }
         val mathResultList = platter.findAll(allContent).toList()
-        if (mathResultList.isNullOrEmpty()) {
+        if (mathResultList.isEmpty()) {
             return
         }
         val size = mathResultList.size
@@ -65,7 +64,7 @@ class AutoAddLanguageDesc : AnAction() {
             key = key.substring(key.lastIndexOf("." )+ 1, key.length - 2)
             val findResult = findTranslateByKey(keyValue = key, event = e, exactSearch = true)
             logD("languageDesc key=$key")
-            if (findResult.isNullOrEmpty()) {
+            if (findResult.isEmpty()) {
                 logD("没有找到对应的翻译或者对应的翻译不存在 key=$key")
                 return
             }
@@ -82,7 +81,6 @@ class AutoAddLanguageDesc : AnAction() {
      *添加对应语种的翻译
      */
     private fun appendSpecialLanguageDesc(
-        languageCode: String,
         selectedText: String,
         event: AnActionEvent,
         editor: Editor
@@ -139,7 +137,7 @@ class AutoAddLanguageDesc : AnAction() {
                 return
             }
             val findResult = findTranslateByKey(keyValue = selectedText, event = event, exactSearch = true)
-            if (findResult.isNullOrEmpty()) {
+            if (findResult.isEmpty()) {
                 logD("没有找到对应的翻译或者对应的翻译不存在 selectedText=$selectedText")
                 return
             }

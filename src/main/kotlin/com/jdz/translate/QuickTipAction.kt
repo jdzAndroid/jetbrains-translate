@@ -117,12 +117,12 @@ class QuickTipAction : AnAction() {
         jbTable.autoCreateColumnsFromModel = true
         for (column in 0 until jbTable.columnCount) {
             jbTable.columnModel.getColumn(column)
-                .setCellRenderer({ table, value, isSelected, hasFocus, row, column ->
+                .setCellRenderer { _, value, _, _, _, _ ->
                     val jTextArea = JTextArea(value as String)
                     jTextArea.lineWrap = true
                     jTextArea.wrapStyleWord = true
                     jTextArea
-                })
+                }
         }
         jbTable.columnModel.getColumn(0).preferredWidth = keyCellWidth
         jbTable.columnModel.getColumn(1).preferredWidth = normalColumnWidth
@@ -198,6 +198,5 @@ class QuickTipAction : AnAction() {
             }
             testValue += testValue
         }
-        return testValue.length
     }
 }

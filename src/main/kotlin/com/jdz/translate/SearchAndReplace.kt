@@ -29,7 +29,7 @@ class SearchAndReplace : AnAction() {
         if (!hasCachedJsonFile(event)) {
             refreshCachedJsonFile(event)
         }
-        var selectedText = editor.selectionModel.selectedText
+        val selectedText = editor.selectionModel.selectedText
         if (selectedText.isNullOrBlank()) {
             replaceAllValueInOneFile(editor = editor, event = event)
         } else {
@@ -43,9 +43,9 @@ class SearchAndReplace : AnAction() {
     private fun replaceAllValueInOneFile(editor: Editor, event: AnActionEvent) {
         logD("单个文件全值匹配替换")
         val regex = Regex("[\\\",\\']\\W+[\\\",\\']")
-        var contentText = editor.document.text
+        val contentText = editor.document.text
         val mathResultList = regex.findAll(contentText).toList()
-        if (mathResultList.isNullOrEmpty()) {
+        if (mathResultList.isEmpty()) {
             logD("没有任何需要翻译的内容")
             return
         }
@@ -67,8 +67,8 @@ class SearchAndReplace : AnAction() {
                     )
                 }
             } else {
-                var selectionStart = itemMathResult.range.first
-                var selectionEnd = itemMathResult.range.last
+                val selectionStart = itemMathResult.range.first
+                val selectionEnd = itemMathResult.range.last
                 WriteCommandAction.runWriteCommandAction(event.project!!) {
                     editor.document.replaceString(
                         selectionStart,

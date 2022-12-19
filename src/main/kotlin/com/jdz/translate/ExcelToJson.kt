@@ -2,10 +2,7 @@ package com.jdz.translate
 
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.PlatformDataKeys
-import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.roots.ProjectFileIndex
-import com.intellij.openapi.vfs.VirtualFile
 import org.apache.poi.openxml4j.opc.OPCPackage
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.BufferedWriter
@@ -36,7 +33,7 @@ class ExcelToJson : AnAction() {
             }
         }
 
-        var excelFilePath = getExcelFilePath(event)
+        val excelFilePath = getExcelFilePath(event)
 
         logD("需要转换成json的excel文件是 excelFilePath=$excelFilePath")
         val xssfWorkbook: XSSFWorkbook?
@@ -138,8 +135,8 @@ class ExcelToJson : AnAction() {
                         if (columnValue.isNullOrEmpty()) {
                             columnValue = ""
                         }
-                        val comonDot = "language_comon_dot_flag"
-                        val comonN = "language_comon_n_flag"
+                        val commonDot = "language_comon_dot_flag"
+                        val commonN = "language_comon_n_flag"
                         columnValue = columnValue
                             .replace("%d", "{params}").replace("%s", "{params}")
                             .replace("%1d", "{params1}").replace("%2d", "{params2}")
@@ -154,8 +151,8 @@ class ExcelToJson : AnAction() {
                             .replace("\\r", "").replace("\\v", "")
                             .replace("\\f", "").replace("\\e", "")
                             .replace("\\n", "").replace("\\r\\n", "")
-                            .replace("\"", comonDot).replace("\\\"", comonDot)
-                            .replace("\\ \n", comonN).replace("\\\n", comonN)
+                            .replace("\"", commonDot).replace("\\\"", commonDot)
+                            .replace("\\ \n", commonN).replace("\\\n", commonN)
 
                             .replace("%D", "{params}").replace("%S", "{params}")
                             .replace("%1D", "{params1}").replace("%2D", "{params2}")
@@ -170,9 +167,9 @@ class ExcelToJson : AnAction() {
                             .replace("\\R", "").replace("\\V", "")
                             .replace("\\F", "").replace("\\E", "")
                             .replace("\\N", "").replace("\\R\\N", "")
-                            .replace("\\ N", comonN).replace("\\\n", comonN)
-                            .replace("\\", "").replace(comonDot, "\\\"")
-                            .replace(comonN, "\\\n")
+                            .replace("\\ N", commonN).replace("\\\n", commonN)
+                            .replace("\\", "").replace(commonDot, "\\\"")
+                            .replace(commonN, "\\\n")
 
                         val lineList = columnValue.lines()
                         if (lineList.isNotEmpty()) {

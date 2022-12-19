@@ -47,8 +47,8 @@ class GenerateDartFromJson : AnAction() {
         if (!jsonFileDir.exists() || !jsonFileDir.isDirectory) {
             jsonFileDir.mkdirs()
         }
-        var worldCityFilePath = getWorldCityPath(event)
-        var worldCityFile = File(worldCityFilePath)
+        val worldCityFilePath = getWorldCityPath(event)
+        val worldCityFile = File(worldCityFilePath)
 
 
         if (jsonFilePathList.isEmpty() && !worldCityFile.exists()) {
@@ -91,7 +91,7 @@ class GenerateDartFromJson : AnAction() {
      */
     private fun generateStringExtensionClass(dartClassInfoList: List<DartClassInfo>) {
         if (dartClassInfoList.isEmpty()) return
-        var dartClassFile = File(dartClassInfoList.first().filePath)
+        val dartClassFile = File(dartClassInfoList.first().filePath)
         val extensionsClassFile = File(dartClassFile.parent, mLanguageExtensionFileName)
         if (extensionsClassFile.exists() && extensionsClassFile.isFile) {
             extensionsClassFile.delete()
@@ -307,7 +307,7 @@ class GenerateDartFromJson : AnAction() {
                     val itemArgName = itemMethodInfo.argList[index]
                     if (index == 0) {
                         argBuilder.append("String $itemArgName")
-                        paramsBuilder.append("$itemArgName")
+                        paramsBuilder.append(itemArgName)
                     } else {
                         argBuilder.append(" String $itemArgName")
                         paramsBuilder.append(" $itemArgName")
@@ -472,7 +472,7 @@ class GenerateDartFromJson : AnAction() {
     /**
      *开始生成JSON文件对应的dart文件基类
      * @param fileDirectoryPath 文件目录路径
-     * @param methodInfoList 方法信息
+     * @param excelMethodInfoList 方法信息
      */
     private fun generateBaseDartClass(fileDirectoryPath: String, excelMethodInfoList: List<MethodInfo>) {
         val file =
@@ -578,7 +578,7 @@ class GenerateDartFromJson : AnAction() {
             for (itemMapEntry in jsonMap) {
                 val key = World_Key_Prefix.plus(itemMapEntry.nameKey)
                 val value = itemMapEntry.name
-                if (key.isNullOrEmpty() || value.isNullOrEmpty()) continue
+                if (key.isEmpty() || value.isNullOrEmpty()) continue
                 if (!valueInfoMap.containsKey(key)) {
                     valueInfoMap[key] = ValueInfo(key = key, value = value, argList = mutableListOf())
                 }
@@ -630,12 +630,9 @@ class GenerateDartFromJson : AnAction() {
         val fileList = file.listFiles()
         if (!fileList.isNullOrEmpty()) {
             for (itemFile in fileList) {
-                if (itemFile.isDirectory) {
-                } else {
-                    if (isJsonFile(itemFile)) {
-                        logD("发现了一个JSON文件 path=${itemFile}")
-                        jsonFilePathList.add(itemFile.absolutePath)
-                    }
+                if (isJsonFile(itemFile)) {
+                    logD("发现了一个JSON文件 path=${itemFile}")
+                    jsonFilePathList.add(itemFile.absolutePath)
                 }
             }
         }
@@ -645,8 +642,8 @@ class GenerateDartFromJson : AnAction() {
      *生成本地国际化默认代理类
      */
     private fun generateDefaultLanguageLocalization(dartClassInfoList: List<DartClassInfo>) {
-        if (dartClassInfoList.isNullOrEmpty()) return
-        var dartFile = File(dartClassInfoList.first().filePath)
+        if (dartClassInfoList.isEmpty()) return
+        val dartFile = File(dartClassInfoList.first().filePath)
         val localizationFile = File(dartFile.parent, mDefaultLocalizationFileName)
         if (localizationFile.exists() && localizationFile.isFile) {
             localizationFile.delete()

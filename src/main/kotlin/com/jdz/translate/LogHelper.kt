@@ -1,6 +1,6 @@
 package com.jdz.translate
 
-private val mDebug = true
+private const val mDebug = true
 
 fun logD(message: String) {
     if (mDebug) {
