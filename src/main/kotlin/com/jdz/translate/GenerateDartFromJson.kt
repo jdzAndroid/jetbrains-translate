@@ -690,7 +690,7 @@ class GenerateDartFromJson : AnAction() {
         bufferedWriter.newLine()
         bufferedWriter.write("  Future<$mBaseDartClassName> load(Locale locale) {")
         bufferedWriter.newLine()
-        bufferedWriter.write("    TranslateManager.localeChanged(languageCode: locale.languageCode);")
+        bufferedWriter.write("    TranslateManager().localeChanged(locale: locale);")
         bufferedWriter.newLine()
         bufferedWriter.write("    return Future(() => TranslateManager.translateProxy);")
         bufferedWriter.newLine()
