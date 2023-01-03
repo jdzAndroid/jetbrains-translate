@@ -20,11 +20,6 @@ import java.util.*
 const val Config_File_Name = "translate_config.json"
 
 /**
- *世界时钟key迷人前缀
- */
-const val World_Key_Prefix="world_city_"
-
-/**
  *获取存储备份的JSON文件路径
  */
 fun getBackJsonFileDir(event: AnActionEvent): String {
@@ -82,7 +77,6 @@ fun getWorldCityPath(event: AnActionEvent): String {
     return getRootPath(event).plus(File.separatorChar).plus(excelPath)
 }
 
-
 /**
  *判断当前系统是否是MAC系统
  */
@@ -96,7 +90,7 @@ fun isMacSystem(): Boolean {
  *翻译可以默认前缀
  */
 fun getTranslateKeyPrefix(): String {
-    return "ido_key_"
+    return "idoKey"
 }
 
 /**
